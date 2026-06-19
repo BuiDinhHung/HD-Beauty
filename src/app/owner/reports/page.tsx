@@ -189,7 +189,7 @@ export default function ReportsPage() {
         <div className="grid grid-cols-3 gap-3">
           <Card padding="sm" className="text-center">
             <p className="text-xs text-gray-400 mb-1">Tổng DT</p>
-            <p className="font-bold text-primary-600 text-sm">{formatCurrency(totalRevenue)}</p>
+            <p className="font-bold text-primary-600 text-xs sm:text-sm truncate">{formatCurrency(totalRevenue)}</p>
           </Card>
           <Card padding="sm" className="text-center">
             <p className="text-xs text-gray-400 mb-1">Giao dịch</p>

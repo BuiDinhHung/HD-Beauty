@@ -65,12 +65,12 @@ export default function Modal({
             exit={{ opacity: 0, y: 20, scale: 0.95 }}
             transition={{ type: 'spring', damping: 25, stiffness: 400 }}
             className={cn(
-              'relative w-full bg-white dark:bg-gray-900 rounded-3xl shadow-2xl z-10',
+              'relative w-full bg-white dark:bg-gray-900 rounded-3xl shadow-2xl z-10 max-h-[90vh] flex flex-col',
               sizes[size]
             )}
           >
             {title && (
-              <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b border-gray-100 dark:border-gray-800">
+              <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b border-gray-100 dark:border-gray-800 flex-shrink-0">
                 <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100">{title}</h2>
                 {showClose && (
                   <button
@@ -82,7 +82,7 @@ export default function Modal({
                 )}
               </div>
             )}
-            <div className="p-6">{children}</div>
+            <div className="p-6 overflow-y-auto">{children}</div>
           </motion.div>
         </div>
       )}

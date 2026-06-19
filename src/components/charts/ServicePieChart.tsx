@@ -24,7 +24,7 @@ export default function ServicePieChart({ data }: ServicePieChartProps) {
   }));
 
   return (
-    <ResponsiveContainer width="100%" height={220}>
+    <ResponsiveContainer width="100%" height={260}>
       <PieChart>
         <Pie
           data={chartData}
