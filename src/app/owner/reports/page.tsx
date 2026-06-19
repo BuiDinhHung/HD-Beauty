@@ -1,12 +1,13 @@
 'use client';
 
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo } from 'react';
 import { BarChart3 } from 'lucide-react';
 import Image from 'next/image';
 import { format, startOfMonth, endOfMonth, subMonths, parseISO } from 'date-fns';
 import { vi } from 'date-fns/locale';
 import { useAuth } from '@/contexts/AuthContext';
-import { useRealtimeTransactions, useDashboardStats } from '@/hooks/useTransactions';
+import { useRealtimeTransactions } from '@/hooks/useTransactions';
+import { useStaff } from '@/hooks/useStaff';
 import Header from '@/components/layout/Header';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
@@ -16,8 +17,16 @@ import { StaffReport, ServiceReport } from '@/types';
 export default function ReportsPage() {
   const { user } = useAuth();
   const { transactions } = useRealtimeTransactions(user?.shopId);
+  const { staff } = useStaff(user?.shopId);
   const [selectedMonth, setSelectedMonth] = useState(format(new Date(), 'yyyy-MM'));
   const [activeTab, setActiveTab] = useState<'staff' | 'service'>('staff');
+
+  // Map staffId → tên hiện tại để đồng bộ khi nhân viên đổi tên
+  const staffNameMap = useMemo(() => {
+    const map: Record<string, string> = {};
+    staff.forEach((s) => { map[s.id] = s.name; });
+    return map;
+  }, [staff]);
 
   const monthDate = parseISO(`${selectedMonth}-01`);
   const monthStart = startOfMonth(monthDate);
@@ -37,7 +46,7 @@ export default function ReportsPage() {
       if (!map[t.staffId]) {
         map[t.staffId] = {
           staffId: t.staffId,
-          staffName: t.staffName,
+          staffName: staffNameMap[t.staffId] ?? t.staffName,
           customerCount: 0,
           totalRevenue: 0,
           avgRevenue: 0,
@@ -49,7 +58,7 @@ export default function ReportsPage() {
     return Object.values(map)
       .map((r) => ({ ...r, avgRevenue: r.customerCount > 0 ? r.totalRevenue / r.customerCount : 0 }))
       .sort((a, b) => b.totalRevenue - a.totalRevenue);
-  }, [monthTransactions]);
+  }, [monthTransactions, staffNameMap]);
 
   const serviceReports = useMemo((): ServiceReport[] => {
     const map: Record<string, ServiceReport> = {};
@@ -95,9 +104,9 @@ export default function ReportsPage() {
     }
   };
 
-  const handleExportPDF = async () => {
+  const handleExportPDF = () => {
     if (activeTab === 'staff') {
-      await exportToPDF(
+      exportToPDF(
         `Báo cáo nhân viên - ${monthLabel}`,
         ['Nhân viên', 'Số khách', 'Doanh thu', 'TB/khách'],
         staffReports.map((r) => [
@@ -109,7 +118,7 @@ export default function ReportsPage() {
         `bao-cao-nhan-vien-${selectedMonth}`
       );
     } else {
-      await exportToPDF(
+      exportToPDF(
         `Báo cáo dịch vụ - ${monthLabel}`,
         ['Dịch vụ', 'Số lượt', 'Doanh thu'],
         serviceReports.map((r) => [
@@ -122,7 +131,32 @@ export default function ReportsPage() {
     }
   };
 
-  const handlePrint = () => window.print();
+  const handlePrint = () => {
+    if (activeTab === 'staff') {
+      exportToPDF(
+        `Báo cáo nhân viên - ${monthLabel}`,
+        ['Nhân viên', 'Số khách', 'Doanh thu', 'TB/khách'],
+        staffReports.map((r) => [
+          r.staffName,
+          r.customerCount,
+          formatCurrency(r.totalRevenue),
+          formatCurrency(r.avgRevenue),
+        ]),
+        `bao-cao-nhan-vien-${selectedMonth}`
+      );
+    } else {
+      exportToPDF(
+        `Báo cáo dịch vụ - ${monthLabel}`,
+        ['Dịch vụ', 'Số lượt', 'Doanh thu'],
+        serviceReports.map((r) => [
+          r.serviceName,
+          r.usageCount,
+          formatCurrency(r.totalRevenue),
+        ]),
+        `bao-cao-dich-vu-${selectedMonth}`
+      );
+    }
+  };
 
   const months = Array.from({ length: 6 }, (_, i) => {
     const d = subMonths(new Date(), i);

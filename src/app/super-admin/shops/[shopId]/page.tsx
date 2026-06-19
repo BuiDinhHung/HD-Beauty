@@ -22,7 +22,8 @@ import { createService, updateService, deleteService, toggleServiceActive } from
 import { deleteTransaction } from '@/services/transaction.service';
 import { decryptPassword } from '@/lib/crypto';
 import { Shop, StaffReport, ServiceReport, Transaction, User, UserRole, Service } from '@/types';
-import { formatCurrency } from '@/lib/utils';
+import { formatCurrency, exportToExcel, exportToPDF } from '@/lib/utils';
+import Image from 'next/image';
 import { format, startOfMonth, endOfMonth, subMonths, parseISO } from 'date-fns';
 import { vi } from 'date-fns/locale';
 import Card from '@/components/ui/Card';
@@ -112,7 +113,7 @@ export default function ShopDetailPage({ params }: { params: Promise<{ shopId: s
         {tab === 1 && <StaffTab shopId={shopId} staff={staff} loading={staffLoading} />}
         {tab === 2 && <TransactionsTab transactions={transactions} loading={txLoading} />}
         {tab === 3 && <ServicesTab shopId={shopId} services={services} loading={svcLoading} />}
-        {tab === 4 && <ReportsTab transactions={transactions} />}
+        {tab === 4 && <ReportsTab transactions={transactions} shopName={shop?.name ?? shopId} staff={staff} />}
       </div>
     </div>
   );
@@ -757,9 +758,15 @@ function ServicesTab({ shopId, services, loading }: {
 
 // ── Tab: Báo cáo ─────────────────────────────────────────────────────────────
 
-function ReportsTab({ transactions }: { transactions: Transaction[] }) {
+function ReportsTab({ transactions, shopName, staff }: { transactions: Transaction[]; shopName: string; staff: User[] }) {
   const [selectedMonth, setSelectedMonth] = useState(format(new Date(), 'yyyy-MM'));
   const [reportTab, setReportTab] = useState<'staff' | 'service'>('staff');
+
+  const staffNameMap = useMemo(() => {
+    const map: Record<string, string> = {};
+    staff.forEach((s) => { map[s.id] = s.name; });
+    return map;
+  }, [staff]);
 
   const months = Array.from({ length: 6 }, (_, i) => {
     const d = subMonths(new Date(), i);
@@ -779,12 +786,12 @@ function ReportsTab({ transactions }: { transactions: Transaction[] }) {
   const staffReports = useMemo((): StaffReport[] => {
     const map: Record<string, StaffReport> = {};
     monthTx.forEach((t) => {
-      if (!map[t.staffId]) map[t.staffId] = { staffId: t.staffId, staffName: t.staffName, customerCount: 0, totalRevenue: 0, avgRevenue: 0 };
+      if (!map[t.staffId]) map[t.staffId] = { staffId: t.staffId, staffName: staffNameMap[t.staffId] ?? t.staffName, customerCount: 0, totalRevenue: 0, avgRevenue: 0 };
       map[t.staffId].customerCount += 1;
       map[t.staffId].totalRevenue  += t.totalAmount;
     });
     return Object.values(map).map((r) => ({ ...r, avgRevenue: r.customerCount > 0 ? r.totalRevenue / r.customerCount : 0 })).sort((a, b) => b.totalRevenue - a.totalRevenue);
-  }, [monthTx]);
+  }, [monthTx, staffNameMap]);
 
   const serviceReports = useMemo((): ServiceReport[] => {
     const map: Record<string, ServiceReport> = {};
@@ -799,6 +806,83 @@ function ReportsTab({ transactions }: { transactions: Transaction[] }) {
   }, [monthTx]);
 
   const totalRevenue = monthTx.reduce((s, t) => s + t.totalAmount, 0);
+
+  const handleExportExcel = () => {
+    if (reportTab === 'staff') {
+      exportToExcel(
+        staffReports.map((r) => ({
+          'Nhân viên': r.staffName,
+          'Số khách': r.customerCount,
+          'Doanh thu': r.totalRevenue,
+          'Trung bình/khách': Math.round(r.avgRevenue),
+        })),
+        `${shopName}-bao-cao-nhan-vien-${selectedMonth}`
+      );
+    } else {
+      exportToExcel(
+        serviceReports.map((r) => ({
+          'Dịch vụ': r.serviceName,
+          'Số lượt': r.usageCount,
+          'Doanh thu': Math.round(r.totalRevenue),
+        })),
+        `${shopName}-bao-cao-dich-vu-${selectedMonth}`
+      );
+    }
+  };
+
+  const handleExportPDF = () => {
+    if (reportTab === 'staff') {
+      exportToPDF(
+        `Báo cáo nhân viên - ${shopName} - ${monthLabel}`,
+        ['Nhân viên', 'Số khách', 'Doanh thu', 'TB/khách'],
+        staffReports.map((r) => [
+          r.staffName,
+          r.customerCount,
+          formatCurrency(r.totalRevenue),
+          formatCurrency(r.avgRevenue),
+        ]),
+        `${shopName}-bao-cao-nhan-vien-${selectedMonth}`
+      );
+    } else {
+      exportToPDF(
+        `Báo cáo dịch vụ - ${shopName} - ${monthLabel}`,
+        ['Dịch vụ', 'Số lượt', 'Doanh thu'],
+        serviceReports.map((r) => [
+          r.serviceName,
+          r.usageCount,
+          formatCurrency(r.totalRevenue),
+        ]),
+        `${shopName}-bao-cao-dich-vu-${selectedMonth}`
+      );
+    }
+  };
+
+  const handlePrint = () => {
+    if (reportTab === 'staff') {
+      exportToPDF(
+        `Báo cáo nhân viên - ${shopName} - ${monthLabel}`,
+        ['Nhân viên', 'Số khách', 'Doanh thu', 'TB/khách'],
+        staffReports.map((r) => [
+          r.staffName,
+          r.customerCount,
+          formatCurrency(r.totalRevenue),
+          formatCurrency(r.avgRevenue),
+        ]),
+        `${shopName}-bao-cao-nhan-vien-${selectedMonth}`
+      );
+    } else {
+      exportToPDF(
+        `Báo cáo dịch vụ - ${shopName} - ${monthLabel}`,
+        ['Dịch vụ', 'Số lượt', 'Doanh thu'],
+        serviceReports.map((r) => [
+          r.serviceName,
+          r.usageCount,
+          formatCurrency(r.totalRevenue),
+        ]),
+        `${shopName}-bao-cao-dich-vu-${selectedMonth}`
+      );
+    }
+  };
 
   return (
     <>
@@ -833,6 +917,19 @@ function ReportsTab({ transactions }: { transactions: Transaction[] }) {
           <p className="text-xs text-gray-400 mb-1">Nhân viên</p>
           <p className="font-bold text-gray-900 dark:text-gray-100 text-sm">{staffReports.length}</p>
         </Card>
+      </div>
+
+      {/* Export buttons */}
+      <div className="flex gap-2">
+        <Button variant="outline" size="sm" onClick={handleExportExcel} className="flex-1">
+          <Image src="/export excel.png" alt="Excel" width={16} height={16} /> Excel
+        </Button>
+        <Button variant="outline" size="sm" onClick={handleExportPDF} className="flex-1">
+          <Image src="/export pdf.png" alt="PDF" width={16} height={16} /> PDF
+        </Button>
+        <Button variant="outline" size="sm" onClick={handlePrint} className="flex-1">
+          <Image src="/in.png" alt="In" width={16} height={16} /> In
+        </Button>
       </div>
 
       <div className="flex rounded-2xl bg-gray-100 dark:bg-gray-800 p-1">

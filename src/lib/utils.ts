@@ -69,39 +69,73 @@ export function getGradientColor(index: number): string {
 export function exportToExcel(data: Record<string, unknown>[], filename: string) {
   import('xlsx').then(({ utils, writeFile }) => {
     const ws = utils.json_to_sheet(data);
+
+    // Auto column width based on content
+    const cols = Object.keys(data[0] ?? {}).map((key) => {
+      const maxLen = Math.max(
+        key.length,
+        ...data.map((row) => String(row[key] ?? '').length)
+      );
+      return { wch: Math.min(maxLen + 2, 40) };
+    });
+    ws['!cols'] = cols;
+
     const wb = utils.book_new();
-    utils.book_append_sheet(wb, ws, 'Sheet1');
+    utils.book_append_sheet(wb, ws, 'Báo cáo');
     writeFile(wb, `${filename}.xlsx`);
   });
 }
 
-export async function exportToPDF(
+// Dùng HTML + browser print để đảm bảo tiếng Việt hiển thị đúng (jsPDF helvetica không hỗ trợ dấu)
+export function exportToPDF(
   title: string,
   headers: string[],
   rows: (string | number)[][],
   filename: string
 ) {
-  const { default: jsPDF } = await import('jspdf');
-  const { default: autoTable } = await import('jspdf-autotable');
+  const dateStr = formatDate(new Date());
 
-  const doc = new jsPDF();
+  const rowsHtml = rows
+    .map(
+      (row, i) =>
+        `<tr style="background:${i % 2 === 1 ? '#f5f3ff' : '#fff'}">
+          ${row.map((cell) => `<td style="padding:7px 12px;border-bottom:1px solid #e5e7eb;font-size:13px">${cell}</td>`).join('')}
+        </tr>`
+    )
+    .join('');
 
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(18);
-  doc.text(title, 14, 22);
+  const html = `<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8"/>
+  <title>${title}</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: Arial, sans-serif; padding: 24px; color: #111; }
+    h1 { font-size: 18px; margin: 0 0 4px; }
+    .sub { font-size: 12px; color: #6b7280; margin-bottom: 20px; }
+    table { width: 100%; border-collapse: collapse; }
+    thead tr { background: #7c3aed; }
+    th { color: #fff; padding: 9px 12px; text-align: left; font-size: 13px; font-weight: 600; }
+    @media print {
+      body { padding: 12px; }
+      @page { margin: 1.5cm; }
+    }
+  </style>
+</head>
+<body>
+  <h1>${title}</h1>
+  <div class="sub">Xuất ngày: ${dateStr} &nbsp;|&nbsp; ${filename}</div>
+  <table>
+    <thead><tr>${headers.map((h) => `<th>${h}</th>`).join('')}</tr></thead>
+    <tbody>${rowsHtml}</tbody>
+  </table>
+  <script>window.onload=function(){window.print();}<\/script>
+</body>
+</html>`;
 
-  doc.setFontSize(10);
-  doc.setFont('helvetica', 'normal');
-  doc.text(`Xuất ngày: ${formatDate(new Date())}`, 14, 32);
-
-  autoTable(doc, {
-    head: [headers],
-    body: rows,
-    startY: 40,
-    styles: { font: 'helvetica', fontSize: 10 },
-    headStyles: { fillColor: [167, 139, 250] },
-    alternateRowStyles: { fillColor: [245, 243, 255] },
-  });
-
-  doc.save(`${filename}.pdf`);
+  const win = window.open('', '_blank');
+  if (!win) { alert('Vui lòng cho phép popup để xuất PDF'); return; }
+  win.document.write(html);
+  win.document.close();
 }
