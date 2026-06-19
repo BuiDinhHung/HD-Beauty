@@ -6,14 +6,14 @@ import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
 import { useAuth } from '@/contexts/AuthContext';
-import { Store } from 'lucide-react';
+import { Store, Scissors } from 'lucide-react';
 
 const baseItems = [
-  { href: '/owner/dashboard', img: '/dashboard.png',  label: 'Tổng quan' },
-  { href: '/owner/staff',     img: '/nhanvien.png',   label: 'Nhân viên' },
-  { href: '/owner/services',  img: '/dichvu.png',     label: 'Dịch vụ'  },
-  { href: '/owner/transactions', img: '/giaodich.png', label: 'Giao dịch' },
-  { href: '/owner/reports',   img: '/baocao.png',     label: 'Báo cáo'  },
+  { href: '/owner/dashboard',    img: '/dashboard.png' as string | null, label: 'Tổng quan' },
+  { href: '/owner/staff',        img: '/nhanvien.png',                   label: 'Nhân viên' },
+  { href: '/owner/services',     img: null,                              label: 'Dịch vụ'  },
+  { href: '/owner/transactions', img: '/giaodich.png',                   label: 'Giao dịch' },
+  { href: '/owner/reports',      img: '/baocao.png',                     label: 'Báo cáo'  },
 ];
 
 export default function OwnerBottomNav() {
@@ -45,16 +45,26 @@ export default function OwnerBottomNav() {
                     style={{ margin: '-4px' }}
                   />
                 )}
-                <Image
-                  src={item.img}
-                  alt={item.label}
-                  width={26}
-                  height={26}
-                  className={cn(
-                    'relative transition-opacity duration-200',
-                    active ? 'opacity-100' : 'opacity-45'
-                  )}
-                />
+                {item.img ? (
+                  <Image
+                    src={item.img}
+                    alt={item.label}
+                    width={26}
+                    height={26}
+                    className={cn(
+                      'relative transition-opacity duration-200',
+                      active ? 'opacity-100' : 'opacity-45'
+                    )}
+                  />
+                ) : (
+                  <Scissors
+                    size={22}
+                    className={cn(
+                      'relative transition-colors duration-200',
+                      active ? 'text-primary-600 dark:text-primary-400' : 'text-gray-400 dark:text-gray-500'
+                    )}
+                  />
+                )}
               </div>
               <span
                 className={cn(
