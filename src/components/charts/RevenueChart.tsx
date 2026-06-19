@@ -55,6 +55,7 @@ export default function RevenueChart({ data }: RevenueChartProps) {
           tick={{ fontSize: 10, fill: '#9CA3AF' }}
           axisLine={false}
           tickLine={false}
+          interval={1}
         />
         <YAxis
           tick={{ fontSize: 10, fill: '#9CA3AF' }}
