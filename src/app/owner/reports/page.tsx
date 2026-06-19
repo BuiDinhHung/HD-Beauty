@@ -11,7 +11,7 @@ import { useStaff } from '@/hooks/useStaff';
 import Header from '@/components/layout/Header';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
-import { formatCurrency, exportToExcel, exportToPDF } from '@/lib/utils';
+import { formatCurrency, exportToExcel, exportToPDF, printReport } from '@/lib/utils';
 import { StaffReport, ServiceReport } from '@/types';
 
 export default function ReportsPage() {
@@ -133,7 +133,7 @@ export default function ReportsPage() {
 
   const handlePrint = () => {
     if (activeTab === 'staff') {
-      exportToPDF(
+      printReport(
         `Báo cáo nhân viên - ${monthLabel}`,
         ['Nhân viên', 'Số khách', 'Doanh thu', 'TB/khách'],
         staffReports.map((r) => [
@@ -145,7 +145,7 @@ export default function ReportsPage() {
         `bao-cao-nhan-vien-${selectedMonth}`
       );
     } else {
-      exportToPDF(
+      printReport(
         `Báo cáo dịch vụ - ${monthLabel}`,
         ['Dịch vụ', 'Số lượt', 'Doanh thu'],
         serviceReports.map((r) => [

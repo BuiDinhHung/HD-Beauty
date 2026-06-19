@@ -98,8 +98,108 @@ export function exportToExcel(data: Record<string, unknown>[], filename: string)
   });
 }
 
-// Inject nội dung vào document hiện tại rồi gọi window.print() — tương thích iframe/WebCake/mobile
-export function exportToPDF(
+// Render bảng ra canvas (dùng font hệ thống → hỗ trợ tiếng Việt) rồi nhúng vào jsPDF và download
+export async function exportToPDF(
+  title: string,
+  headers: string[],
+  rows: (string | number)[][],
+  filename: string
+) {
+  const { jsPDF } = await import('jspdf');
+  const dateStr = formatDate(new Date());
+
+  const SCALE = 2;          // retina
+  const W     = 800;
+  const M     = 36;         // margin ngang
+  const TW    = W - M * 2;  // chiều rộng bảng
+  const CW    = Math.floor(TW / headers.length);
+  const ROW_H = 34;
+  const TH_H  = 42;         // header row của bảng
+  const TOP_H = 86;         // vùng tiêu đề + đường kẻ
+  const H     = TOP_H + TH_H + ROW_H * rows.length + M;
+
+  const canvas = document.createElement('canvas');
+  canvas.width  = W * SCALE;
+  canvas.height = H * SCALE;
+  const ctx = canvas.getContext('2d')!;
+  ctx.scale(SCALE, SCALE);
+
+  // Nền trắng
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, W, H);
+
+  // Tiêu đề
+  ctx.fillStyle = '#111111';
+  ctx.font = `bold 18px sans-serif`;
+  ctx.fillText(title, M, 36);
+
+  // Ngày xuất
+  ctx.fillStyle = '#6b7280';
+  ctx.font = `12px sans-serif`;
+  ctx.fillText(`Xuất ngày: ${dateStr}  ·  ${filename}`, M, 58);
+
+  // Đường kẻ phân cách
+  ctx.strokeStyle = '#e5e7eb';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(M, 72); ctx.lineTo(W - M, 72);
+  ctx.stroke();
+
+  // Header bảng (nền tím)
+  const tY = TOP_H;
+  ctx.fillStyle = '#7c3aed';
+  ctx.fillRect(M, tY, TW, TH_H);
+
+  ctx.fillStyle = '#ffffff';
+  ctx.font = `bold 13px sans-serif`;
+  headers.forEach((h, i) => ctx.fillText(h, M + i * CW + 10, tY + 27));
+
+  // Dòng dữ liệu
+  rows.forEach((row, ri) => {
+    const y = tY + TH_H + ri * ROW_H;
+
+    ctx.fillStyle = ri % 2 ? '#f5f3ff' : '#fafafa';
+    ctx.fillRect(M, y, TW, ROW_H);
+
+    ctx.strokeStyle = '#ede9fe';
+    ctx.lineWidth = 0.5;
+    ctx.beginPath();
+    ctx.moveTo(M, y + ROW_H); ctx.lineTo(M + TW, y + ROW_H);
+    ctx.stroke();
+
+    ctx.fillStyle = '#111111';
+    ctx.font = `13px sans-serif`;
+    row.forEach((cell, ci) => {
+      let text = String(cell);
+      // Cắt text nếu tràn cột (measureText đo pixel chính xác)
+      const maxW = CW - 22;
+      while (ctx.measureText(text).width > maxW && text.length > 1) {
+        text = text.slice(0, -1);
+      }
+      if (text !== String(cell)) text = text.slice(0, -1) + '…';
+      ctx.fillText(text, M + ci * CW + 10, y + 22);
+    });
+  });
+
+  // Viền ngoài bảng
+  ctx.strokeStyle = '#ddd6fe';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(M, tY, TW, TH_H + ROW_H * rows.length);
+
+  // Đưa canvas vào jsPDF rồi download
+  const imgData = canvas.toDataURL('image/png');
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  const pageW = doc.internal.pageSize.getWidth();
+  const pdfM  = 10;
+  const imgW  = pageW - pdfM * 2;
+  const imgH  = (H / W) * imgW;
+
+  doc.addImage(imgData, 'PNG', pdfM, pdfM, imgW, imgH);
+  doc.save(`${filename}.pdf`);
+}
+
+// In báo cáo — inject overlay vào document hiện tại, gọi window.print() (tương thích iframe/WebCake)
+export function printReport(
   title: string,
   headers: string[],
   rows: (string | number)[][],
@@ -116,7 +216,6 @@ export function exportToPDF(
     )
     .join('');
 
-  // Overlay toàn trang khi in — CSS visibility cho phép override trên child element
   const style = document.createElement('style');
   style.setAttribute('data-hd-print-style', '');
   style.textContent = `
@@ -157,7 +256,6 @@ export function exportToPDF(
   };
 
   window.addEventListener('afterprint', cleanup, { once: true });
-  // Fallback nếu afterprint không fire (iOS Safari)
   setTimeout(cleanup, 60_000);
 
   window.print();
