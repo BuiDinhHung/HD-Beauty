@@ -67,7 +67,7 @@ export function getGradientColor(index: number): string {
 }
 
 export function exportToExcel(data: Record<string, unknown>[], filename: string) {
-  import('xlsx').then(({ utils, writeFile }) => {
+  import('xlsx').then(({ utils, write }) => {
     const ws = utils.json_to_sheet(data);
 
     // Auto column width based on content
@@ -82,11 +82,23 @@ export function exportToExcel(data: Record<string, unknown>[], filename: string)
 
     const wb = utils.book_new();
     utils.book_append_sheet(wb, ws, 'Báo cáo');
-    writeFile(wb, `${filename}.xlsx`);
+
+    // Dùng Blob + <a download> thay vì writeFile để tương thích iframe/webview
+    const buf = write(wb, { bookType: 'xlsx', type: 'array' });
+    const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${filename}.xlsx`;
+    a.style.display = 'none';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   });
 }
 
-// Dùng HTML + browser print để đảm bảo tiếng Việt hiển thị đúng (jsPDF helvetica không hỗ trợ dấu)
+// Dùng HTML + hidden iframe để tương thích iframe/webview (tránh window.open bị block)
 export function exportToPDF(
   title: string,
   headers: string[],
@@ -130,12 +142,25 @@ export function exportToPDF(
     <thead><tr>${headers.map((h) => `<th>${h}</th>`).join('')}</tr></thead>
     <tbody>${rowsHtml}</tbody>
   </table>
-  <script>window.onload=function(){window.print();}<\/script>
 </body>
 </html>`;
 
-  const win = window.open('', '_blank');
-  if (!win) { alert('Vui lòng cho phép popup để xuất PDF'); return; }
-  win.document.write(html);
-  win.document.close();
+  const iframe = document.createElement('iframe');
+  iframe.style.cssText = 'position:fixed;top:-9999px;left:-9999px;width:1px;height:1px;border:0;opacity:0';
+  document.body.appendChild(iframe);
+
+  const doc = iframe.contentDocument ?? iframe.contentWindow?.document;
+  if (!doc) { document.body.removeChild(iframe); return; }
+
+  doc.open();
+  doc.write(html);
+  doc.close();
+
+  iframe.onload = () => {
+    iframe.contentWindow?.focus();
+    iframe.contentWindow?.print();
+    setTimeout(() => {
+      if (document.body.contains(iframe)) document.body.removeChild(iframe);
+    }, 1000);
+  };
 }
