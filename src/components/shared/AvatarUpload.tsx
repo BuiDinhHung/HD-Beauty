@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import { Camera } from 'lucide-react';
 import Image from 'next/image';
 import toast from 'react-hot-toast';
@@ -19,6 +19,9 @@ export default function AvatarUpload({ userId, photoURL, initials, size = 'lg' }
   const inputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [preview, setPreview] = useState<string | undefined>(photoURL);
+
+  // Sync khi prop photoURL thay đổi từ bên ngoài (vd: sau refreshUser)
+  useEffect(() => { setPreview(photoURL); }, [photoURL]);
 
   const dim = size === 'lg' ? 'h-20 w-20' : 'h-12 w-12';
   const text = size === 'lg' ? 'text-3xl' : 'text-lg';

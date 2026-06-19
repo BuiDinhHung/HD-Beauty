@@ -2,6 +2,7 @@
 
 import { motion } from 'framer-motion';
 import { Phone, Mail, MoreVertical, Lock, Unlock, Trash2, Edit, ShieldCheck, ShieldMinus, KeyRound } from 'lucide-react';
+import Image from 'next/image';
 import { User, UserRole } from '@/types';
 import { getInitials } from '@/lib/utils';
 import Badge from '@/components/ui/Badge';
@@ -54,8 +55,12 @@ export default function EmployeeCard({
       className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 p-4 shadow-card"
     >
       <div className="flex items-center gap-3">
-        <div className="h-12 w-12 rounded-full bg-gradient-to-br from-primary-400 to-secondary-300 flex items-center justify-center text-white font-bold text-lg flex-shrink-0">
-          {initials}
+        <div className="h-12 w-12 rounded-full bg-gradient-to-br from-primary-400 to-secondary-300 flex items-center justify-center text-white font-bold text-lg flex-shrink-0 overflow-hidden">
+          {employee.photoURL ? (
+            <Image src={employee.photoURL} alt={employee.name} width={48} height={48} className="h-full w-full object-cover" unoptimized />
+          ) : (
+            initials
+          )}
         </div>
 
         <div className="flex-1 min-w-0">
