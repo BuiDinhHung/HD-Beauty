@@ -98,7 +98,7 @@ export function exportToExcel(data: Record<string, unknown>[], filename: string)
   });
 }
 
-// Dùng HTML + hidden iframe để tương thích iframe/webview (tránh window.open bị block)
+// Inject nội dung vào document hiện tại rồi gọi window.print() — tương thích iframe/WebCake/mobile
 export function exportToPDF(
   title: string,
   headers: string[],
@@ -116,51 +116,49 @@ export function exportToPDF(
     )
     .join('');
 
-  const html = `<!DOCTYPE html>
-<html lang="vi">
-<head>
-  <meta charset="UTF-8"/>
-  <title>${title}</title>
-  <style>
-    * { box-sizing: border-box; }
-    body { font-family: Arial, sans-serif; padding: 24px; color: #111; }
-    h1 { font-size: 18px; margin: 0 0 4px; }
-    .sub { font-size: 12px; color: #6b7280; margin-bottom: 20px; }
-    table { width: 100%; border-collapse: collapse; }
-    thead tr { background: #7c3aed; }
-    th { color: #fff; padding: 9px 12px; text-align: left; font-size: 13px; font-weight: 600; }
+  // Overlay toàn trang khi in — CSS visibility cho phép override trên child element
+  const style = document.createElement('style');
+  style.setAttribute('data-hd-print-style', '');
+  style.textContent = `
     @media print {
-      body { padding: 12px; }
+      body > *:not([data-hd-print]) { visibility: hidden !important; }
+      [data-hd-print] {
+        visibility: visible !important;
+        position: fixed !important;
+        inset: 0 !important;
+        z-index: 99999 !important;
+        background: #fff !important;
+        padding: 24px !important;
+        font-family: Arial, sans-serif !important;
+        color: #111 !important;
+      }
       @page { margin: 1.5cm; }
     }
-  </style>
-</head>
-<body>
-  <h1>${title}</h1>
-  <div class="sub">Xuất ngày: ${dateStr} &nbsp;|&nbsp; ${filename}</div>
-  <table>
-    <thead><tr>${headers.map((h) => `<th>${h}</th>`).join('')}</tr></thead>
-    <tbody>${rowsHtml}</tbody>
-  </table>
-</body>
-</html>`;
+    [data-hd-print] { display: none; }
+  `;
 
-  const iframe = document.createElement('iframe');
-  iframe.style.cssText = 'position:fixed;top:-9999px;left:-9999px;width:1px;height:1px;border:0;opacity:0';
-  document.body.appendChild(iframe);
+  const el = document.createElement('div');
+  el.setAttribute('data-hd-print', '');
+  el.innerHTML = `
+    <h1 style="font-size:18px;margin:0 0 4px">${title}</h1>
+    <div style="font-size:12px;color:#6b7280;margin-bottom:20px">Xuất ngày: ${dateStr} &nbsp;|&nbsp; ${filename}</div>
+    <table style="width:100%;border-collapse:collapse">
+      <thead><tr style="background:#7c3aed">${headers.map((h) => `<th style="color:#fff;padding:9px 12px;text-align:left;font-size:13px;font-weight:600">${h}</th>`).join('')}</tr></thead>
+      <tbody>${rowsHtml}</tbody>
+    </table>
+  `;
 
-  const doc = iframe.contentDocument ?? iframe.contentWindow?.document;
-  if (!doc) { document.body.removeChild(iframe); return; }
+  document.head.appendChild(style);
+  document.body.appendChild(el);
 
-  doc.open();
-  doc.write(html);
-  doc.close();
-
-  iframe.onload = () => {
-    iframe.contentWindow?.focus();
-    iframe.contentWindow?.print();
-    setTimeout(() => {
-      if (document.body.contains(iframe)) document.body.removeChild(iframe);
-    }, 1000);
+  const cleanup = () => {
+    if (document.head.contains(style)) document.head.removeChild(style);
+    if (document.body.contains(el)) document.body.removeChild(el);
   };
+
+  window.addEventListener('afterprint', cleanup, { once: true });
+  // Fallback nếu afterprint không fire (iOS Safari)
+  setTimeout(cleanup, 60_000);
+
+  window.print();
 }
