@@ -1,5 +1,5 @@
 import { doc, updateDoc } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
+import { ref, uploadBytesResumable, getDownloadURL, deleteObject } from 'firebase/storage';
 import { db, storage } from '@/lib/firebase';
 
 export async function updateUserProfile(userId: string, data: { name?: string; phone?: string; photoURL?: string }) {
@@ -7,13 +7,29 @@ export async function updateUserProfile(userId: string, data: { name?: string; p
 }
 
 export async function uploadAvatar(userId: string, file: File): Promise<string> {
-  // Giới hạn 5MB
   if (file.size > 5 * 1024 * 1024) throw new Error('Ảnh tối đa 5MB');
 
   const ext = file.name.split('.').pop() ?? 'jpg';
   const storageRef = ref(storage, `avatars/${userId}/avatar.${ext}`);
-  const snapshot = await uploadBytes(storageRef, file, { contentType: file.type });
-  return await getDownloadURL(snapshot.ref);
+
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(
+      () => reject(new Error('Upload quá thời gian — kiểm tra Firebase Storage đã bật chưa')),
+      20000,
+    );
+
+    const task = uploadBytesResumable(storageRef, file, { contentType: file.type });
+    task.on(
+      'state_changed',
+      null,
+      (err) => { clearTimeout(timer); reject(err); },
+      async () => {
+        clearTimeout(timer);
+        try { resolve(await getDownloadURL(task.snapshot.ref)); }
+        catch (e) { reject(e); }
+      },
+    );
+  });
 }
 
 export async function deleteAvatar(userId: string, ext = 'jpg') {
