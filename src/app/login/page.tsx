@@ -63,29 +63,40 @@ export default function LoginPage() {
   if (loading) return null;
 
   return (
-    <div className="min-h-screen min-h-dvh bg-gradient-to-br from-primary-50 via-white to-secondary-50 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950 flex items-center justify-center p-4">
-      <div className="w-full max-w-sm">
-        <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, ease: 'easeOut' }}
-          className="text-center mb-10"
-        >
-          <motion.div
-            initial={{ scale: 0.8, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            transition={{ delay: 0.2, type: 'spring', stiffness: 260, damping: 20 }}
-            className="inline-flex items-center justify-center mb-2"
-          >
-            <Image src="/logo_ngang.png" alt="HD Beauty Manager" width={300} height={76} className="drop-shadow-2xl" priority />
-          </motion.div>
-        </motion.div>
+    <div className="min-h-screen min-h-dvh flex flex-col">
+      {/* Top — branded hero */}
+      <div className="bg-gradient-to-br from-primary-500 via-primary-400 to-secondary-400 flex-none flex flex-col items-center justify-center py-14 px-6 relative overflow-hidden">
+        {/* decorative circles */}
+        <div className="absolute -top-16 -right-16 w-56 h-56 rounded-full bg-white/10" />
+        <div className="absolute -bottom-10 -left-10 w-40 h-40 rounded-full bg-white/10" />
 
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ scale: 0.8, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ duration: 0.5, type: 'spring', stiffness: 260, damping: 20 }}
+          className="relative z-10 flex flex-col items-center gap-3"
+        >
+          <Image
+            src="/logo_ngang.png"
+            alt="HD Beauty Manager"
+            width={280}
+            height={72}
+            className="brightness-0 invert drop-shadow-lg"
+            priority
+          />
+          <p className="text-white/80 text-xs tracking-widest uppercase font-medium">
+            Quản lý tiệm làm đẹp
+          </p>
+        </motion.div>
+      </div>
+
+      {/* Bottom — form */}
+      <div className="flex-1 bg-gray-50 dark:bg-gray-950 flex flex-col justify-between">
+        <motion.div
+          initial={{ opacity: 0, y: 24 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3, duration: 0.4 }}
-          className="bg-white dark:bg-gray-900 rounded-3xl shadow-glass border border-gray-100 dark:border-gray-800 p-6 space-y-4"
+          transition={{ delay: 0.2, duration: 0.4 }}
+          className="bg-white dark:bg-gray-900 mx-4 -mt-6 rounded-3xl shadow-xl border border-gray-100 dark:border-gray-800 p-6 space-y-4"
         >
           <div>
             <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-1">Đăng nhập</h2>
@@ -128,7 +139,7 @@ export default function LoginPage() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.5 }}
-          className="text-center text-xs text-gray-400 mt-6"
+          className="text-center text-xs text-gray-400 py-6"
         >
           Copyright © {new Date().getFullYear()} Hoangcaster
         </motion.p>
