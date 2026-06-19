@@ -8,6 +8,7 @@ import Loading from '@/components/ui/Loading';
 import { Moon, Sun, LogOut, LayoutDashboard, Users } from 'lucide-react';
 import Image from 'next/image';
 import { useTheme } from '@/contexts/ThemeContext';
+import { getInitials } from '@/lib/utils';
 
 const NAV = [
   { href: '/super-admin/dashboard', label: 'Tổng quan',    icon: LayoutDashboard },
@@ -16,6 +17,7 @@ const NAV = [
 
 export default function SuperAdminLayout({ children }: { children: React.ReactNode }) {
   const { user, loading, isSuperAdmin, logout } = useAuth();
+  const initials = getInitials(user?.name || 'S');
   const { toggleTheme, isDark } = useTheme();
   const router = useRouter();
   const pathname = usePathname();
@@ -71,6 +73,16 @@ export default function SuperAdminLayout({ children }: { children: React.ReactNo
             >
               {isDark ? <Sun size={18} /> : <Moon size={18} />}
             </button>
+            {/* Avatar → profile */}
+            <Link href="/super-admin/profile" className="ml-1">
+              <div className="h-8 w-8 rounded-full bg-gradient-to-br from-amber-400 to-orange-400 flex items-center justify-center text-white text-xs font-bold overflow-hidden border-2 border-transparent hover:border-amber-400 transition-all">
+                {user?.photoURL ? (
+                  <Image src={user.photoURL} alt="avatar" width={32} height={32} className="h-full w-full object-cover" unoptimized />
+                ) : (
+                  initials
+                )}
+              </div>
+            </Link>
             <button
               onClick={logout}
               className="p-2 rounded-xl text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800"
