@@ -123,7 +123,7 @@ export default function OwnerProfilePage() {
             onClick={() => { shopForm.reset({ name: shop?.name || '' }); setShopModalOpen(true); }}
             className="mt-4 flex items-center gap-2 text-sm text-primary-600 dark:text-primary-400 font-medium"
           >
-            Chệnh sửa <ChevronRight size={14} />
+            Chỉnh sửa <ChevronRight size={14} />
           </button>
         </Card>
 

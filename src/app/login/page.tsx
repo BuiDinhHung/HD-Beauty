@@ -63,41 +63,42 @@ export default function LoginPage() {
   if (loading) return null;
 
   return (
-    <div className="min-h-screen min-h-dvh flex flex-col">
-      {/* Top — branded hero */}
-      <div className="bg-gradient-to-br from-primary-500 via-primary-400 to-secondary-400 flex-none flex flex-col items-center justify-center py-14 px-6 relative overflow-hidden">
-        {/* decorative circles */}
-        <div className="absolute -top-16 -right-16 w-56 h-56 rounded-full bg-white/10" />
-        <div className="absolute -bottom-10 -left-10 w-40 h-40 rounded-full bg-white/10" />
+    <div className="min-h-screen min-h-dvh bg-gradient-to-br from-primary-500 via-primary-400 to-secondary-400 flex items-center justify-center p-4 relative overflow-hidden">
+      {/* decorative circles */}
+      <div className="absolute -top-20 -right-20 w-72 h-72 rounded-full bg-white/10" />
+      <div className="absolute -bottom-12 -left-12 w-52 h-52 rounded-full bg-white/10" />
 
+      {/* Card chứa toàn bộ nội dung */}
+      <motion.div
+        initial={{ opacity: 0, y: 24 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, ease: 'easeOut' }}
+        className="relative z-10 w-full max-w-sm bg-white dark:bg-gray-900 rounded-3xl shadow-2xl p-8 space-y-6"
+      >
+        {/* Logo */}
         <motion.div
           initial={{ scale: 0.8, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
-          transition={{ duration: 0.5, type: 'spring', stiffness: 260, damping: 20 }}
-          className="relative z-10 flex flex-col items-center gap-3"
+          transition={{ delay: 0.1, type: 'spring', stiffness: 260, damping: 20 }}
+          className="flex flex-col items-center gap-1"
         >
           <Image
             src="/logo_ngang.png"
             alt="HD Beauty Manager"
-            width={280}
-            height={72}
-            className="brightness-0 invert drop-shadow-lg"
+            width={240}
+            height={62}
+            className="drop-shadow-md"
             priority
           />
-          <p className="text-white/80 text-xs tracking-widest uppercase font-medium">
+          <p className="text-xs text-gray-400 tracking-widest uppercase font-medium mt-1">
             Quản lý tiệm làm đẹp
           </p>
         </motion.div>
-      </div>
 
-      {/* Bottom — form */}
-      <div className="flex-1 bg-gray-50 dark:bg-gray-950 flex flex-col justify-between">
-        <motion.div
-          initial={{ opacity: 0, y: 24 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2, duration: 0.4 }}
-          className="bg-white dark:bg-gray-900 mx-4 -mt-6 rounded-3xl shadow-xl border border-gray-100 dark:border-gray-800 p-6 space-y-4"
-        >
+        <div className="h-px bg-gray-100 dark:bg-gray-800" />
+
+        {/* Form */}
+        <div className="space-y-4">
           <div>
             <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-1">Đăng nhập</h2>
             <p className="text-sm text-gray-400">Nhập thông tin tài khoản của bạn</p>
@@ -111,39 +112,32 @@ export default function LoginPage() {
               error={errors.email?.message}
               {...register('email')}
             />
-            <div>
-              <Input
-                label="Mật khẩu"
-                type={showPass ? 'text' : 'password'}
-                placeholder="••••••••"
-                error={errors.password?.message}
-                rightIcon={
-                  <button
-                    type="button"
-                    onClick={() => setShowPass(!showPass)}
-                    className="text-gray-400 hover:text-gray-600"
-                  >
-                    {showPass ? <EyeOff size={16} /> : <Eye size={16} />}
-                  </button>
-                }
-                {...register('password')}
-              />
-            </div>
+            <Input
+              label="Mật khẩu"
+              type={showPass ? 'text' : 'password'}
+              placeholder="••••••••"
+              error={errors.password?.message}
+              rightIcon={
+                <button
+                  type="button"
+                  onClick={() => setShowPass(!showPass)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  {showPass ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+              }
+              {...register('password')}
+            />
             <Button type="submit" fullWidth size="lg" loading={submitting}>
               Đăng nhập
             </Button>
           </form>
-        </motion.div>
+        </div>
 
-        <motion.p
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.5 }}
-          className="text-center text-xs text-gray-400 py-6"
-        >
+        <p className="text-center text-xs text-gray-300 dark:text-gray-600 pt-2">
           Copyright © {new Date().getFullYear()} Hoangcaster
-        </motion.p>
-      </div>
+        </p>
+      </motion.div>
     </div>
   );
 }
