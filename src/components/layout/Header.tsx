@@ -1,8 +1,9 @@
 'use client';
 
 import { ReactNode } from 'react';
-import { Moon, Sun } from 'lucide-react';
+import { Moon, Sun, LogOut } from 'lucide-react';
 import { useTheme } from '@/contexts/ThemeContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { motion } from 'framer-motion';
 
 interface HeaderProps {
@@ -14,6 +15,7 @@ interface HeaderProps {
 
 export default function Header({ title, subtitle, rightAction, showThemeToggle = true }: HeaderProps) {
   const { toggleTheme, isDark } = useTheme();
+  const { logout } = useAuth();
 
   return (
     <motion.header
@@ -38,6 +40,13 @@ export default function Header({ title, subtitle, rightAction, showThemeToggle =
               {isDark ? <Sun size={18} /> : <Moon size={18} />}
             </button>
           )}
+          <button
+            onClick={logout}
+            className="md:hidden p-2 rounded-xl text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+            title="Đăng xuất"
+          >
+            <LogOut size={18} />
+          </button>
         </div>
       </div>
     </motion.header>
