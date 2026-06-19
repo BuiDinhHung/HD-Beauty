@@ -1,0 +1,163 @@
+'use client';
+
+import { useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import { motion } from 'framer-motion';
+import { Store, Pencil, Check, MapPin, Phone, Clock, Hourglass } from 'lucide-react';
+import toast from 'react-hot-toast';
+import { useAuth } from '@/contexts/AuthContext';
+import { updateShop } from '@/services/shop.service';
+import Header from '@/components/layout/Header';
+import Card from '@/components/ui/Card';
+import Button from '@/components/ui/Button';
+import Input from '@/components/ui/Input';
+
+const schema = z.object({
+  name: z.string().min(2, 'Tên tiệm ít nhất 2 ký tự').max(50),
+});
+type FormData = z.infer<typeof schema>;
+
+export default function OwnerShopPage() {
+  const { user, shop, refreshUser } = useAuth();
+  const hasShop = !!user?.shopId && !!shop;
+
+  const [editing, setEditing] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+
+  const { register, handleSubmit, reset, formState: { errors } } = useForm<FormData>({
+    resolver: zodResolver(schema),
+    defaultValues: { name: shop?.name || '' },
+  });
+
+  const onSubmit = async (data: FormData) => {
+    if (!shop) return;
+    setSubmitting(true);
+    try {
+      await updateShop(shop.id, { name: data.name });
+      toast.success('Đã cập nhật tên tiệm!');
+      setEditing(false);
+      await refreshUser();
+    } catch {
+      toast.error('Không thể lưu. Vui lòng thử lại.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div>
+      <Header title="Tiệm của tôi" />
+
+      <div className="p-4 md:p-6 space-y-5 max-w-5xl">
+        {!hasShop ? (
+          /* ✨✨ Chưa được phân bổ tiệm ✨✨ */
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="flex flex-col items-center py-16 text-center"
+          >
+            <div className="h-20 w-20 rounded-3xl bg-gray-100 dark:bg-gray-800 flex items-center justify-center shadow-sm mb-4">
+              <Hourglass size={36} className="text-gray-400" />
+            </div>
+            <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-2">
+              Chưa có tiệm
+            </h2>
+            <p className="text-sm text-gray-400 max-w-xs">
+              Tài khoản của bạn chưa được phân bổ tiệm. Vui lòng liên hệ Super Admin để được gán tiệm.
+            </p>
+          </motion.div>
+        ) : (
+          /* ✨✨ Đã có tiệm: hiện thông tin ✨✨ */
+          <>
+            {/* Shop banner */}
+            <motion.div
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="rounded-3xl bg-gradient-primary p-6 text-white shadow-glass-lg"
+            >
+              <div className="flex items-center gap-4">
+                <div className="h-14 w-14 rounded-2xl bg-white/20 flex items-center justify-center flex-shrink-0">
+                  <Store size={28} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-lg font-bold truncate">{shop.name}</p>
+                </div>
+              </div>
+            </motion.div>
+
+            {/* Thông tin tiệm */}
+            <motion.div
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.05 }}
+            >
+              <Card>
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="font-semibold text-gray-900 dark:text-gray-100">Thông tin tiệm</h3>
+                  {!editing && (
+                    <button
+                      onClick={() => { reset({ name: shop.name }); setEditing(true); }}
+                      className="flex items-center gap-1.5 text-xs text-primary-600 dark:text-primary-400 font-medium"
+                    >
+                      <Pencil size={13} /> Sửa tên
+                    </button>
+                  )}
+                </div>
+
+                {editing ? (
+                  <form onSubmit={handleSubmit(onSubmit)} className="space-y-3">
+                    <Input
+                      label="Tên tiệm mới"
+                      error={errors.name?.message}
+                      {...register('name')}
+                    />
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        fullWidth
+                        type="button"
+                        onClick={() => setEditing(false)}
+                      >
+                        Hủy
+                      </Button>
+                      <Button fullWidth type="submit" loading={submitting}>
+                        <Check size={16} /> Lưu
+                      </Button>
+                    </div>
+                  </form>
+                ) : (
+                  <div className="space-y-3 text-sm">
+                    <div className="flex items-center gap-3 text-gray-600 dark:text-gray-400">
+                      <Store size={15} className="text-primary-400 flex-shrink-0" />
+                      <span className="flex-1">Tên tiệm</span>
+                      <span className="font-medium text-gray-900 dark:text-gray-100">{shop.name}</span>
+                    </div>
+                    <div className="flex items-center gap-3 text-gray-600 dark:text-gray-400">
+                      <MapPin size={15} className="text-primary-400 flex-shrink-0" />
+                      <span className="flex-1">Địa chệ</span>
+                      <span className="text-gray-400 italic">Chưa cập nhật</span>
+                    </div>
+                    <div className="flex items-center gap-3 text-gray-600 dark:text-gray-400">
+                      <Phone size={15} className="text-primary-400 flex-shrink-0" />
+                      <span className="flex-1">Điện thoại</span>
+                      <span className="text-gray-400 italic">Chưa cập nhật</span>
+                    </div>
+                    <div className="flex items-center gap-3 text-gray-600 dark:text-gray-400">
+                      <Clock size={15} className="text-primary-400 flex-shrink-0" />
+                      <span className="flex-1">Giờ mở cửa</span>
+                      <span className="text-gray-400 italic">Chưa cập nhật</span>
+                    </div>
+                  </div>
+                )}
+              </Card>
+            </motion.div>
+
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
