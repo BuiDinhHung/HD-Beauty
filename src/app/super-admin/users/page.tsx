@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
+import Image from 'next/image';
 import { collection, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { User, Shop } from '@/types';
@@ -278,8 +279,11 @@ export default function SuperAdminUsersPage() {
         className="flex items-center gap-3 py-3 border-b border-gray-50 dark:border-gray-800 last:border-0"
       >
         {/* Avatar */}
-        <div className="h-10 w-10 rounded-full bg-gradient-to-br from-primary-400 to-secondary-300 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
-          {getInitials(u.name)}
+        <div className="h-10 w-10 rounded-full bg-gradient-to-br from-primary-400 to-secondary-300 flex items-center justify-center text-white font-bold text-sm flex-shrink-0 overflow-hidden">
+          {u.photoURL
+            ? <Image src={u.photoURL} alt={u.name} width={40} height={40} className="h-full w-full object-cover" unoptimized />
+            : getInitials(u.name)
+          }
         </div>
 
         {/* Info */}
