@@ -1,7 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { Phone, Mail, MoreVertical, Lock, Unlock, Trash2, Edit, ShieldCheck, ShieldMinus, KeyRound } from 'lucide-react';
+import { Phone, Mail, MoreVertical, Lock, Unlock, Trash2, Edit, ShieldCheck, ShieldMinus, KeyRound, ArrowRightLeft } from 'lucide-react';
 import Image from 'next/image';
 import { User, UserRole } from '@/types';
 import { getInitials } from '@/lib/utils';
@@ -18,7 +18,8 @@ interface EmployeeCardProps {
   onDelete?: () => void;
   onResetPassword?: () => void;
   onViewPassword?: () => void;
-  onPromote?: () => void; // chỉ owner mới truyền
+  onPromote?: () => void;
+  onTransfer?: () => void;
 }
 
 const roleLabel: Record<string, { label: string; variant: 'primary' | 'warning' | 'gray' }> = {
@@ -39,6 +40,7 @@ export default function EmployeeCard({
   onResetPassword,
   onViewPassword,
   onPromote,
+  onTransfer,
 }: EmployeeCardProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const initials = getInitials(employee.name);
@@ -85,7 +87,7 @@ export default function EmployeeCard({
         </div>
 
         {/* Menu — ẩn nếu không có quyền và không có action nào */}
-        {(canEdit || onPromote) && (
+        {(canEdit || onPromote || onTransfer) && (
           <div className="relative">
             <button
               onClick={() => setMenuOpen(!menuOpen)}
@@ -153,6 +155,15 @@ export default function EmployeeCard({
                     </button>
                   )}
 
+                  {onTransfer && (
+                    <button
+                      onClick={() => { setMenuOpen(false); onTransfer(); }}
+                      className="flex items-center gap-2 w-full px-4 py-2.5 text-sm hover:bg-gray-50 dark:hover:bg-gray-700 text-blue-600 dark:text-blue-400"
+                    >
+                      <ArrowRightLeft size={14} /> Chuyển tiệm
+                    </button>
+                  )}
+
                   {canEdit && onDelete && (
                     <button
                       onClick={() => { setMenuOpen(false); onDelete(); }}
@@ -162,7 +173,7 @@ export default function EmployeeCard({
                     </button>
                   )}
 
-                  {!canEdit && !onPromote && (
+                  {!canEdit && !onPromote && !onTransfer && (
                     <p className="px-4 py-2.5 text-xs text-gray-400">Không có quyền</p>
                   )}
                 </div>

@@ -4,12 +4,14 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Plus, Users, ShieldCheck, User as UserIcon, Eye, EyeOff, Copy, Check } from 'lucide-react';
+import { Plus, Users, ShieldCheck, User as UserIcon, Eye, EyeOff, Copy, Check, ArrowRightLeft, Store } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { useStaff } from '@/hooks/useStaff';
 import { createStaffAccount, resetStaffPassword, setStaffPassword } from '@/services/auth.service';
-import { updateStaff, toggleStaffActive, deleteStaff } from '@/services/staff.service';
+import { updateStaff, toggleStaffActive, deleteStaff, transferStaff } from '@/services/staff.service';
+import { getShopById } from '@/services/shop.service';
+import { Shop } from '@/types';
 import { decryptPassword } from '@/lib/crypto';
 import Header from '@/components/layout/Header';
 import Button from '@/components/ui/Button';
@@ -21,6 +23,7 @@ import SearchBar from '@/components/ui/SearchBar';
 import EmptyState from '@/components/ui/EmptyState';
 import { SkeletonList } from '@/components/ui/Loading';
 import { User, UserRole } from '@/types';
+
 
 const addSchema = z.object({
   name: z.string().min(2, 'Tên ít nhất 2 ký tự'),
@@ -56,6 +59,14 @@ export default function StaffPage() {
   const [newPwdValue, setNewPwdValue] = useState('');
   const [newPwdVisible, setNewPwdVisible] = useState(false);
   const [pwdLoading, setPwdLoading] = useState(false);
+
+  // Transfer state
+  const [transferOpen, setTransferOpen] = useState(false);
+  const [transferTarget, setTransferTarget] = useState<User | null>(null);
+  const [transferShopId, setTransferShopId] = useState('');
+  const [transferShop, setTransferShop] = useState<Shop | null>(null);
+  const [transferLookingUp, setTransferLookingUp] = useState(false);
+  const [transferConfirmOpen, setTransferConfirmOpen] = useState(false);
 
   const addForm = useForm<AddFormData>({
     resolver: zodResolver(addSchema),
@@ -205,6 +216,48 @@ export default function StaffPage() {
     }
   };
 
+  const openTransfer = (s: User) => {
+    setTransferTarget(s);
+    setTransferShopId('');
+    setTransferShop(null);
+    setTransferOpen(true);
+  };
+
+  const handleLookupShop = async () => {
+    const id = transferShopId.trim();
+    if (!id || id === user?.shopId) {
+      toast.error(id === user?.shopId ? 'Đây là tiệm hiện tại' : 'Nhập mã tiệm');
+      return;
+    }
+    setTransferLookingUp(true);
+    try {
+      const shop = await getShopById(id);
+      if (!shop) { toast.error('Không tìm thấy tiệm'); return; }
+      setTransferShop(shop);
+    } catch {
+      toast.error('Không thể tìm tiệm');
+    } finally {
+      setTransferLookingUp(false);
+    }
+  };
+
+  const handleTransferConfirm = async () => {
+    if (!transferTarget || !transferShop) return;
+    setSubmitting(true);
+    try {
+      await transferStaff(transferTarget.id, transferShop.id);
+      toast.success(`Đã chuyển ${transferTarget.name} sang ${transferShop.name}`);
+      setTransferOpen(false);
+      setTransferConfirmOpen(false);
+      setTransferTarget(null);
+      setTransferShop(null);
+    } catch {
+      toast.error('Không thể chuyển tiệm');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   const openEdit = (s: User) => {
     if (!canEditUser(s)) {
       toast.error('Bạn không có quyền sửa thông tin này');
@@ -254,6 +307,7 @@ export default function StaffPage() {
               onViewPassword={canEditUser(s) ? () => openViewPassword(s) : undefined}
               onResetPassword={() => handleResetPassword(s)}
               onPromote={isOwner ? () => openPromote(s) : undefined}
+              onTransfer={isOwner ? () => openTransfer(s) : undefined}
             />
           ))}
         </div>
@@ -386,6 +440,65 @@ export default function StaffPage() {
         title="Xóa tài khoản"
         description={`Bạn có chắc muốn xóa "${selected?.name}"? Hành động này không thể hoàn tác.`}
         confirmLabel="Xóa"
+        loading={submitting}
+      />
+
+      {/* Transfer Modal */}
+      <Modal
+        open={transferOpen}
+        onClose={() => { setTransferOpen(false); setTransferShop(null); }}
+        title={`Chuyển tiệm — ${transferTarget?.name}`}
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-gray-500 dark:text-gray-400">
+            Nhập mã tiệm đích. Nhân viên sẽ được chuyển sang tiệm đó và không còn thuộc tiệm này nữa.
+          </p>
+          <div className="flex gap-2">
+            <input
+              value={transferShopId}
+              onChange={(e) => { setTransferShopId(e.target.value); setTransferShop(null); }}
+              placeholder="Mã tiệm (Shop ID)..."
+              className="flex-1 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2.5 text-sm text-gray-900 dark:text-gray-100 outline-none focus:border-primary-400"
+            />
+            <Button size="sm" variant="outline" onClick={handleLookupShop} loading={transferLookingUp}>
+              Tìm
+            </Button>
+          </div>
+
+          {transferShop && (
+            <div className="flex items-center gap-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-100 dark:border-blue-800">
+              <Store size={18} className="text-blue-500 flex-shrink-0" />
+              <div>
+                <p className="font-semibold text-sm text-gray-900 dark:text-gray-100">{transferShop.name}</p>
+                <p className="text-xs text-gray-400 font-mono">{transferShop.id}</p>
+              </div>
+            </div>
+          )}
+
+          <div className="flex gap-3 pt-2">
+            <Button variant="outline" fullWidth onClick={() => { setTransferOpen(false); setTransferShop(null); }}>
+              Hủy
+            </Button>
+            <Button
+              fullWidth
+              disabled={!transferShop}
+              loading={submitting}
+              onClick={() => { setTransferOpen(false); setTransferConfirmOpen(true); }}
+            >
+              <ArrowRightLeft size={15} /> Chuyển
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      <ConfirmDialog
+        open={transferConfirmOpen}
+        onClose={() => setTransferConfirmOpen(false)}
+        onConfirm={handleTransferConfirm}
+        title="Xác nhận chuyển tiệm"
+        description={`Chuyển "${transferTarget?.name}" sang tiệm "${transferShop?.name}"? Nhân viên sẽ không còn trong danh sách của bạn.`}
+        confirmLabel="Chuyển tiệm"
+        variant="warning"
         loading={submitting}
       />
 

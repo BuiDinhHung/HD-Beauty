@@ -6,6 +6,7 @@ import {
   ArrowLeft, Store, Users, ArrowLeftRight, Scissors, BarChart3,
   TrendingUp, DollarSign, Calendar, Activity,
   Plus, ShieldCheck, User as UserIcon, Eye, EyeOff, Copy, Check,
+  ArrowRightLeft,
 } from 'lucide-react';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
@@ -17,7 +18,8 @@ import { useRealtimeTransactions, useDashboardStats, useChartData } from '@/hook
 import { useStaff } from '@/hooks/useStaff';
 import { useServices } from '@/hooks/useServices';
 import { createStaffAccount, resetStaffPassword, setStaffPassword } from '@/services/auth.service';
-import { updateStaff, toggleStaffActive, deleteStaff } from '@/services/staff.service';
+import { updateStaff, toggleStaffActive, deleteStaff, transferStaff } from '@/services/staff.service';
+import { getAllShops } from '@/services/shop.service';
 import { createService, updateService, deleteService, toggleServiceActive } from '@/services/service.service';
 import { deleteTransaction } from '@/services/transaction.service';
 import { decryptPassword } from '@/lib/crypto';
@@ -215,6 +217,13 @@ function StaffTab({ shopId, staff, loading }: {
   const [newPwdVisible, setNewPwdVisible] = useState(false);
   const [pwdLoading, setPwdLoading]   = useState(false);
 
+  // Transfer state
+  const [transferOpen, setTransferOpen]       = useState(false);
+  const [transferTarget, setTransferTarget]   = useState<User | null>(null);
+  const [allShops, setAllShops]               = useState<Shop[]>([]);
+  const [selectedShopId, setSelectedShopId]   = useState('');
+  const [transferConfirmOpen, setTransferConfirmOpen] = useState(false);
+
   const addForm  = useForm<AddStaffForm>({ resolver: zodResolver(addStaffSchema), defaultValues: { role: 'staff' } });
   const editForm = useForm<EditStaffForm>({ resolver: zodResolver(editStaffSchema) });
 
@@ -332,6 +341,33 @@ function StaffTab({ shopId, staff, loading }: {
     setEditOpen(true);
   };
 
+  const openTransfer = async (s: User) => {
+    setTransferTarget(s);
+    setSelectedShopId('');
+    setTransferOpen(true);
+    if (allShops.length === 0) {
+      const shops = await getAllShops();
+      setAllShops(shops);
+    }
+  };
+
+  const handleTransferConfirm = async () => {
+    if (!transferTarget || !selectedShopId) return;
+    setSubmitting(true);
+    try {
+      await transferStaff(transferTarget.id, selectedShopId);
+      const shopName = allShops.find((s) => s.id === selectedShopId)?.name ?? selectedShopId;
+      toast.success(`Đã chuyển ${transferTarget.name} sang ${shopName}`);
+      setTransferConfirmOpen(false);
+      setTransferOpen(false);
+      setTransferTarget(null);
+    } catch {
+      toast.error('Không thể chuyển tiệm');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   const Section = ({ title, icon, items }: { title: string; icon: React.ReactNode; items: User[] }) => (
     <div>
       <div className="flex items-center gap-2 mb-3">
@@ -357,6 +393,7 @@ function StaffTab({ shopId, staff, loading }: {
               onViewPassword={() => openViewPassword(s)}
               onResetPassword={() => resetStaffPassword(s.email).then(() => toast.success(`Đã gửi email tới ${s.email}`)).catch(() => toast.error('Không thể gửi email'))}
               onPromote={() => { setSelected(s); setPromoteOpen(true); }}
+              onTransfer={() => openTransfer(s)}
             />
           ))}
         </div>
@@ -504,6 +541,67 @@ function StaffTab({ shopId, staff, loading }: {
           )}
         </div>
       </Modal>
+
+      {/* Transfer Modal */}
+      <Modal
+        open={transferOpen}
+        onClose={() => setTransferOpen(false)}
+        title={`Chuyển tiệm — ${transferTarget?.name}`}
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-gray-500 dark:text-gray-400">
+            Chọn tiệm đích. Nhân viên sẽ được chuyển sang tiệm đó ngay lập tức.
+          </p>
+          <div>
+            <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5 block">Chọn tiệm</label>
+            <select
+              value={selectedShopId}
+              onChange={(e) => setSelectedShopId(e.target.value)}
+              className="w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2.5 text-sm text-gray-900 dark:text-gray-100 outline-none focus:border-primary-400"
+            >
+              <option value="">-- Chọn tiệm --</option>
+              {allShops
+                .filter((s) => s.id !== shopId)
+                .map((s) => (
+                  <option key={s.id} value={s.id}>{s.name}</option>
+                ))
+              }
+            </select>
+          </div>
+          {selectedShopId && (
+            <div className="flex items-center gap-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-100 dark:border-blue-800">
+              <Store size={16} className="text-blue-500 flex-shrink-0" />
+              <div>
+                <p className="font-semibold text-sm text-gray-900 dark:text-gray-100">
+                  {allShops.find((s) => s.id === selectedShopId)?.name}
+                </p>
+                <p className="text-xs text-gray-400 font-mono">{selectedShopId}</p>
+              </div>
+            </div>
+          )}
+          <div className="flex gap-3 pt-2">
+            <Button variant="outline" fullWidth onClick={() => setTransferOpen(false)}>Hủy</Button>
+            <Button
+              fullWidth
+              disabled={!selectedShopId}
+              onClick={() => { setTransferOpen(false); setTransferConfirmOpen(true); }}
+            >
+              <ArrowRightLeft size={15} /> Chuyển
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      <ConfirmDialog
+        open={transferConfirmOpen}
+        onClose={() => setTransferConfirmOpen(false)}
+        onConfirm={handleTransferConfirm}
+        title="Xác nhận chuyển tiệm"
+        description={`Chuyển "${transferTarget?.name}" sang "${allShops.find((s) => s.id === selectedShopId)?.name}"? Nhân viên sẽ không còn trong danh sách tiệm này.`}
+        confirmLabel="Chuyển tiệm"
+        variant="warning"
+        loading={submitting}
+      />
     </>
   );
 }

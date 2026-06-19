@@ -47,3 +47,7 @@ export async function toggleStaffActive(staffId: string, active: boolean) {
 export async function deleteStaff(staffId: string) {
   await deleteDoc(doc(db, 'users', staffId));
 }
+
+export async function transferStaff(staffId: string, newShopId: string) {
+  await updateDoc(doc(db, 'users', staffId), { shopId: newShopId });
+}
