@@ -1,10 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { adminAuth, adminDb } from '@/lib/firebase-admin';
+import { getAdminAuth, getAdminDb } from '@/lib/firebase-admin';
 import { encryptPassword } from '@/lib/crypto';
 
+export const dynamic = 'force-dynamic';
+
 export async function POST(req: NextRequest) {
+  const adminAuth = getAdminAuth();
+  const adminDb   = getAdminDb();
   try {
-    // Verify caller is super_admin via their ID token
     const authorization = req.headers.get('authorization') ?? '';
     const idToken = authorization.replace('Bearer ', '');
     if (!idToken) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
