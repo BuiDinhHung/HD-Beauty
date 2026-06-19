@@ -1,41 +1,33 @@
 import { doc, updateDoc } from 'firebase/firestore';
-import { ref, uploadBytesResumable, getDownloadURL, deleteObject } from 'firebase/storage';
-import { db, storage } from '@/lib/firebase';
+import { db } from '@/lib/firebase';
 
 export async function updateUserProfile(userId: string, data: { name?: string; phone?: string; photoURL?: string }) {
   await updateDoc(doc(db, 'users', userId), data);
 }
 
-export async function uploadAvatar(userId: string, file: File): Promise<string> {
-  if (file.size > 5 * 1024 * 1024) throw new Error('Ảnh tối đa 5MB');
-
-  const ext = file.name.split('.').pop() ?? 'jpg';
-  const storageRef = ref(storage, `avatars/${userId}/avatar.${ext}`);
+// Resize + compress ảnh thành JPEG base64, lưu thẳng vào Firestore — không cần Firebase Storage
+export async function uploadAvatar(_userId: string, file: File): Promise<string> {
+  if (file.size > 10 * 1024 * 1024) throw new Error('Ảnh tối đa 10MB');
 
   return new Promise((resolve, reject) => {
-    const timer = setTimeout(
-      () => reject(new Error('Upload quá thời gian — kiểm tra Firebase Storage đã bật chưa')),
-      20000,
-    );
+    const img = new window.Image();
+    img.onload = () => {
+      const MAX = 200;
+      const scale = Math.min(MAX / img.width, MAX / img.height, 1);
+      const w = Math.round(img.width * scale);
+      const h = Math.round(img.height * scale);
 
-    const task = uploadBytesResumable(storageRef, file, { contentType: file.type });
-    task.on(
-      'state_changed',
-      null,
-      (err) => { clearTimeout(timer); reject(err); },
-      async () => {
-        clearTimeout(timer);
-        try { resolve(await getDownloadURL(task.snapshot.ref)); }
-        catch (e) { reject(e); }
-      },
-    );
+      const canvas = document.createElement('canvas');
+      canvas.width  = w;
+      canvas.height = h;
+      const ctx = canvas.getContext('2d')!;
+      ctx.drawImage(img, 0, 0, w, h);
+
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.82);
+      URL.revokeObjectURL(img.src);
+      resolve(dataUrl);
+    };
+    img.onerror = () => { URL.revokeObjectURL(img.src); reject(new Error('Không đọc được ảnh')); };
+    img.src = URL.createObjectURL(file);
   });
-}
-
-export async function deleteAvatar(userId: string, ext = 'jpg') {
-  try {
-    await deleteObject(ref(storage, `avatars/${userId}/avatar.${ext}`));
-  } catch {
-    // ignore if not found
-  }
 }
