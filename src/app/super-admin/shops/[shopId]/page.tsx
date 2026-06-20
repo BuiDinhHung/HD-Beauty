@@ -1,12 +1,12 @@
 'use client';
 
-import { use, useEffect, useState, useMemo } from 'react';
+import { use, useEffect, useState, useMemo, ReactNode } from 'react';
 import Link from 'next/link';
 import {
   ArrowLeft, Store, Users, ArrowLeftRight, Scissors, BarChart3,
   TrendingUp, DollarSign, Calendar, Activity,
   Plus, ShieldCheck, User as UserIcon, Eye, EyeOff, Copy, Check,
-  ArrowRightLeft,
+  ArrowRightLeft, MapPin, Phone, Clock, CalendarDays, CalendarOff,
 } from 'lucide-react';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
@@ -111,7 +111,7 @@ export default function ShopDetailPage({ params }: { params: Promise<{ shopId: s
       </div>
 
       <div className="max-w-5xl mx-auto p-4 md:p-6 space-y-5">
-        {tab === 0 && <OverviewTab stats={stats} chartData={chartData} transactions={transactions} txLoading={txLoading} staffCount={staff.length} svcCount={services.length} />}
+        {tab === 0 && <OverviewTab stats={stats} chartData={chartData} transactions={transactions} txLoading={txLoading} staffCount={staff.length} svcCount={services.length} shop={shop} />}
         {tab === 1 && <StaffTab shopId={shopId} staff={staff} loading={staffLoading} />}
         {tab === 2 && <TransactionsTab transactions={transactions} loading={txLoading} />}
         {tab === 3 && <ServicesTab shopId={shopId} services={services} loading={svcLoading} />}
@@ -121,19 +121,115 @@ export default function ShopDetailPage({ params }: { params: Promise<{ shopId: s
   );
 }
 
+// ── Schedule display helpers ──────────────────────────────────────────────────
+const SA_DAY_SHORT = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
+type SAStoredSchedule = {
+  ranges: { fromDay: number; toDay: number; isClosed: boolean; from: string; to: string }[];
+  holiday: { isClosed: boolean; from: string; to: string };
+};
+function saDayLabel(from: number, to: number) {
+  return from === to ? SA_DAY_SHORT[from] : `${SA_DAY_SHORT[from]} – ${SA_DAY_SHORT[to]}`;
+}
+function ClosedBadge() {
+  return <span className="text-xs font-medium text-red-400 bg-red-50 dark:bg-red-900/20 px-2 py-0.5 rounded-full">Đóng cửa</span>;
+}
+function LegacyRow({ label, value, icon }: { label: string; value: string; icon: ReactNode }) {
+  return (
+    <div className="flex items-center justify-between px-3 py-2.5">
+      <span className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">{icon} {label}</span>
+      {value === 'Đóng cửa' ? <ClosedBadge /> : <span className="text-sm font-semibold text-gray-900 dark:text-gray-100">{value}</span>}
+    </div>
+  );
+}
+function ScheduleView({ scheduleJson, legacy }: {
+  scheduleJson?: string;
+  legacy?: { openingHours?: string; weekendHours?: string; holidayHours?: string };
+}) {
+  let parsed: SAStoredSchedule | null = null;
+  if (scheduleJson) {
+    try { parsed = JSON.parse(scheduleJson); } catch { /* ignore */ }
+  }
+  if (!parsed) {
+    const hasLegacy = legacy?.openingHours || legacy?.weekendHours || legacy?.holidayHours;
+    if (!hasLegacy) return <p className="text-xs text-gray-400 italic">Chưa cập nhật</p>;
+    return (
+      <div className="rounded-xl border border-gray-100 dark:border-gray-800 divide-y divide-gray-100 dark:divide-gray-800 overflow-hidden">
+        {legacy?.openingHours && <LegacyRow label="T2 – T6" value={legacy.openingHours} icon={<CalendarDays size={11} />} />}
+        {legacy?.weekendHours && <LegacyRow label="T7 – CN" value={legacy.weekendHours} icon={<CalendarDays size={11} />} />}
+        {legacy?.holidayHours && <LegacyRow label="Ngày lễ" value={legacy.holidayHours} icon={<CalendarOff size={11} />} />}
+      </div>
+    );
+  }
+  return (
+    <div className="rounded-xl border border-gray-100 dark:border-gray-800 divide-y divide-gray-100 dark:divide-gray-800 overflow-hidden">
+      {parsed.ranges.map((r, i) => (
+        <div key={i} className="flex items-center justify-between px-3 py-2.5">
+          <span className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
+            <CalendarDays size={11} /> {saDayLabel(r.fromDay, r.toDay)}
+          </span>
+          {r.isClosed
+            ? <ClosedBadge />
+            : <span className="text-sm font-semibold text-gray-900 dark:text-gray-100">{r.from} – {r.to}</span>
+          }
+        </div>
+      ))}
+      <div className="flex items-center justify-between px-3 py-2.5">
+        <span className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
+          <CalendarOff size={11} /> Ngày lễ
+        </span>
+        {parsed.holiday.isClosed
+          ? <ClosedBadge />
+          : <span className="text-sm font-semibold text-gray-900 dark:text-gray-100">{parsed.holiday.from} – {parsed.holiday.to}</span>
+        }
+      </div>
+    </div>
+  );
+}
+
 // ── Tab: Tổng quan ───────────────────────────────────────────────────────────
 
-function OverviewTab({ stats, chartData, transactions, txLoading, staffCount, svcCount }: {
+function OverviewTab({ stats, chartData, transactions, txLoading, staffCount, svcCount, shop }: {
   stats: ReturnType<typeof useDashboardStats>;
   chartData: ReturnType<typeof useChartData>;
   transactions: Transaction[];
   txLoading: boolean;
   staffCount: number;
   svcCount: number;
+  shop: Shop | null;
 }) {
   const recentTx = transactions.slice(0, 8);
   return (
     <>
+      {/* Shop info card */}
+      <Card>
+        <h3 className="font-semibold text-sm text-gray-700 dark:text-gray-300 mb-3">Thông tin tiệm</h3>
+        <div className="space-y-3 text-sm">
+          <div className="flex items-start gap-3 text-gray-600 dark:text-gray-400">
+            <MapPin size={15} className="text-primary-400 flex-shrink-0 mt-0.5" />
+            <span className="flex-1">Địa chỉ</span>
+            {shop?.address
+              ? <span className="font-medium text-gray-900 dark:text-gray-100 text-right max-w-[55%]">{shop.address}</span>
+              : <span className="text-gray-400 italic">Chưa cập nhật</span>}
+          </div>
+          <div className="flex items-center gap-3 text-gray-600 dark:text-gray-400">
+            <Phone size={15} className="text-primary-400 flex-shrink-0" />
+            <span className="flex-1">Điện thoại</span>
+            {shop?.phone
+              ? <span className="font-medium text-gray-900 dark:text-gray-100">{shop.phone}</span>
+              : <span className="text-gray-400 italic">Chưa cập nhật</span>}
+          </div>
+          <div className="pt-1">
+            <div className="flex items-center gap-2 mb-2.5">
+              <Clock size={15} className="text-primary-400" />
+              <span className="font-medium text-gray-600 dark:text-gray-400">Giờ mở cửa</span>
+            </div>
+            <div className="ml-5">
+              <ScheduleView scheduleJson={shop?.scheduleJson} legacy={shop ?? undefined} />
+            </div>
+          </div>
+        </div>
+      </Card>
+
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {txLoading ? (
           [1,2,3,4].map((k) => <SkeletonCard key={k} className="h-28" />)
