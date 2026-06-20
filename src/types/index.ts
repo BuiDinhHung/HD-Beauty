@@ -9,7 +9,9 @@ export interface Shop {
   createdAt: Timestamp;
   address?: string;
   phone?: string;
-  openingHours?: string;
+  openingHours?: string;   // T2–T6
+  weekendHours?: string;   // T7–CN
+  holidayHours?: string;   // Ngày lễ
 }
 
 export interface User {
