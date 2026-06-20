@@ -338,7 +338,7 @@ export default function OwnerShopPage() {
 
   const startEditing = () => {
     reset({ name: shop?.name || '', address: shop?.address || '', phone: shop?.phone || '' });
-    const parsed = parseSchedule(shop?.scheduleJson, shop, nextId);
+    const parsed = parseSchedule(shop?.scheduleJson, shop ?? undefined, nextId);
     setRanges(parsed.ranges);
     setHoliday(parsed.holiday);
     setConflict(null);
