@@ -8,7 +8,7 @@ import {
 import { db } from '@/lib/firebase';
 import { Shop } from '@/types';
 
-export async function updateShop(shopId: string, data: Partial<Pick<Shop, 'name' | 'address' | 'phone' | 'openingHours' | 'weekendHours' | 'holidayHours'>>) {
+export async function updateShop(shopId: string, data: Partial<Pick<Shop, 'name' | 'address' | 'phone' | 'scheduleJson'>>) {
   await updateDoc(doc(db, 'shops', shopId), data);
 }
 

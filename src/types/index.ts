@@ -9,9 +9,12 @@ export interface Shop {
   createdAt: Timestamp;
   address?: string;
   phone?: string;
-  openingHours?: string;   // T2–T6
-  weekendHours?: string;   // T7–CN
-  holidayHours?: string;   // Ngày lễ
+  // Legacy fields — kept for backward compat
+  openingHours?: string;
+  weekendHours?: string;
+  holidayHours?: string;
+  // New structured schedule (JSON string)
+  scheduleJson?: string;
 }
 
 export interface User {
