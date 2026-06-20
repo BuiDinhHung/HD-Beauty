@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -48,27 +48,16 @@ export default function StaffNewTransactionPage() {
   });
 
   const selectedServiceIds = watch('serviceIds');
-  const totalAmount = watch('totalAmount');
-
-  const selectedServices = useMemo(() => {
-    return activeServices.filter((s) => selectedServiceIds.includes(s.id));
-  }, [activeServices, selectedServiceIds]);
-
-  const suggestedTotal = selectedServices.reduce((sum, s) => sum + s.price, 0);
 
   const toggleService = (service: Service, currentIds: string[], onChange: (ids: string[]) => void) => {
-    if (currentIds.includes(service.id)) {
-      onChange(currentIds.filter((id) => id !== service.id));
-    } else {
-      const newIds = [...currentIds, service.id];
-      onChange(newIds);
-      const newTotal = activeServices
-        .filter((s) => newIds.includes(s.id))
-        .reduce((sum, s) => sum + s.price, 0);
-      if (!totalAmount || totalAmount === 0) {
-        setValue('totalAmount', newTotal);
-      }
-    }
+    const newIds = currentIds.includes(service.id)
+      ? currentIds.filter((id) => id !== service.id)
+      : [...currentIds, service.id];
+    onChange(newIds);
+    const newTotal = activeServices
+      .filter((s) => newIds.includes(s.id))
+      .reduce((sum, s) => sum + s.price, 0);
+    setValue('totalAmount', newTotal);
   };
 
   const onSubmit = async (data: FormData) => {
@@ -190,14 +179,6 @@ export default function StaffNewTransactionPage() {
               </div>
             )}
           />
-          {suggestedTotal > 0 && (
-            <div className="mt-3 p-3 rounded-xl bg-gray-50 dark:bg-gray-800 flex items-center justify-between">
-              <span className="text-xs text-gray-500">Tổng gợi ý</span>
-              <span className="text-sm font-semibold text-primary-600">
-                {formatCurrency(suggestedTotal)}
-              </span>
-            </div>
-          )}
         </Card>
 
         {/* Amount */}

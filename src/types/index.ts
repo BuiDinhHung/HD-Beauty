@@ -7,6 +7,9 @@ export interface Shop {
   name: string;
   ownerId: string;
   createdAt: Timestamp;
+  address?: string;
+  phone?: string;
+  openingHours?: string;
 }
 
 export interface User {

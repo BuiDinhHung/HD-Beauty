@@ -14,8 +14,30 @@ import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 
+const OPENING_HOURS_OPTIONS = [
+  '7:00 - 17:00',
+  '7:00 - 18:00',
+  '7:00 - 19:00',
+  '7:00 - 20:00',
+  '8:00 - 17:00',
+  '8:00 - 18:00',
+  '8:00 - 19:00',
+  '8:00 - 20:00',
+  '8:00 - 21:00',
+  '9:00 - 18:00',
+  '9:00 - 19:00',
+  '9:00 - 20:00',
+  '9:00 - 21:00',
+  '10:00 - 20:00',
+  '10:00 - 21:00',
+  '10:00 - 22:00',
+];
+
 const schema = z.object({
   name: z.string().min(2, 'Tên tiệm ít nhất 2 ký tự').max(50),
+  address: z.string().optional(),
+  phone: z.string().optional(),
+  openingHours: z.string().optional(),
 });
 type FormData = z.infer<typeof schema>;
 
@@ -28,15 +50,25 @@ export default function OwnerShopPage() {
 
   const { register, handleSubmit, reset, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
-    defaultValues: { name: shop?.name || '' },
+    defaultValues: {
+      name: shop?.name || '',
+      address: shop?.address || '',
+      phone: shop?.phone || '',
+      openingHours: shop?.openingHours || '',
+    },
   });
 
   const onSubmit = async (data: FormData) => {
     if (!shop) return;
     setSubmitting(true);
     try {
-      await updateShop(shop.id, { name: data.name });
-      toast.success('Đã cập nhật tên tiệm!');
+      await updateShop(shop.id, {
+        name: data.name,
+        address: data.address || '',
+        phone: data.phone || '',
+        openingHours: data.openingHours || '',
+      });
+      toast.success('Đã cập nhật thông tin tiệm!');
       setEditing(false);
       await refreshUser();
     } catch {
@@ -52,7 +84,6 @@ export default function OwnerShopPage() {
 
       <div className="p-4 md:p-6 space-y-5 max-w-5xl">
         {!hasShop ? (
-          /* ✨✨ Chưa được phân bổ tiệm ✨✨ */
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -69,7 +100,6 @@ export default function OwnerShopPage() {
             </p>
           </motion.div>
         ) : (
-          /* ✨✨ Đã có tiệm: hiện thông tin ✨✨ */
           <>
             {/* Shop banner */}
             <motion.div
@@ -98,10 +128,18 @@ export default function OwnerShopPage() {
                   <h3 className="font-semibold text-gray-900 dark:text-gray-100">Thông tin tiệm</h3>
                   {!editing && (
                     <button
-                      onClick={() => { reset({ name: shop.name }); setEditing(true); }}
+                      onClick={() => {
+                        reset({
+                          name: shop.name,
+                          address: shop.address || '',
+                          phone: shop.phone || '',
+                          openingHours: shop.openingHours || '',
+                        });
+                        setEditing(true);
+                      }}
                       className="flex items-center gap-1.5 text-xs text-primary-600 dark:text-primary-400 font-medium"
                     >
-                      <Pencil size={13} /> Sửa tên
+                      <Pencil size={13} /> Chỉnh sửa
                     </button>
                   )}
                 </div>
@@ -109,11 +147,36 @@ export default function OwnerShopPage() {
                 {editing ? (
                   <form onSubmit={handleSubmit(onSubmit)} className="space-y-3">
                     <Input
-                      label="Tên tiệm mới"
+                      label="Tên tiệm"
                       error={errors.name?.message}
                       {...register('name')}
                     />
-                    <div className="flex gap-2">
+                    <Input
+                      label="Địa chỉ"
+                      placeholder="123 Đường ABC, Quận 1, TP.HCM"
+                      {...register('address')}
+                    />
+                    <Input
+                      label="Điện thoại"
+                      placeholder="0901234567"
+                      type="tel"
+                      {...register('phone')}
+                    />
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                        Giờ mở cửa
+                      </label>
+                      <select
+                        {...register('openingHours')}
+                        className="w-full h-11 px-4 rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-primary-400 focus:border-transparent transition-all duration-200"
+                      >
+                        <option value="">-- Chọn giờ mở cửa --</option>
+                        {OPENING_HOURS_OPTIONS.map((opt) => (
+                          <option key={opt} value={opt}>{opt}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="flex gap-2 pt-1">
                       <Button
                         variant="outline"
                         fullWidth
@@ -136,28 +199,35 @@ export default function OwnerShopPage() {
                     </div>
                     <div className="flex items-center gap-3 text-gray-600 dark:text-gray-400">
                       <MapPin size={15} className="text-primary-400 flex-shrink-0" />
-                      <span className="flex-1">Địa chệ</span>
-                      <span className="text-gray-400 italic">Chưa cập nhật</span>
+                      <span className="flex-1">Địa chỉ</span>
+                      {shop.address
+                        ? <span className="font-medium text-gray-900 dark:text-gray-100 text-right max-w-[55%]">{shop.address}</span>
+                        : <span className="text-gray-400 italic">Chưa cập nhật</span>
+                      }
                     </div>
                     <div className="flex items-center gap-3 text-gray-600 dark:text-gray-400">
                       <Phone size={15} className="text-primary-400 flex-shrink-0" />
                       <span className="flex-1">Điện thoại</span>
-                      <span className="text-gray-400 italic">Chưa cập nhật</span>
+                      {shop.phone
+                        ? <span className="font-medium text-gray-900 dark:text-gray-100">{shop.phone}</span>
+                        : <span className="text-gray-400 italic">Chưa cập nhật</span>
+                      }
                     </div>
                     <div className="flex items-center gap-3 text-gray-600 dark:text-gray-400">
                       <Clock size={15} className="text-primary-400 flex-shrink-0" />
                       <span className="flex-1">Giờ mở cửa</span>
-                      <span className="text-gray-400 italic">Chưa cập nhật</span>
+                      {shop.openingHours
+                        ? <span className="font-medium text-gray-900 dark:text-gray-100">{shop.openingHours}</span>
+                        : <span className="text-gray-400 italic">Chưa cập nhật</span>
+                      }
                     </div>
                   </div>
                 )}
               </Card>
             </motion.div>
-
           </>
         )}
       </div>
     </div>
   );
 }
-

@@ -8,7 +8,7 @@ import {
   getAuth,
 } from 'firebase/auth';
 import { initializeApp, deleteApp, getApp as fbGetApp } from 'firebase/app';
-import { doc, setDoc, updateDoc, Timestamp } from 'firebase/firestore';
+import { getFirestore, doc, setDoc, updateDoc, Timestamp } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
 import { encryptPassword, decryptPassword } from '@/lib/crypto';
 import { UserRole } from '@/types';
@@ -25,22 +25,34 @@ export async function createStaffAccount(
   shopId: string,
   role: UserRole = 'staff'
 ) {
-  const credential = await createUserWithEmailAndPassword(auth, email, password);
-  const uid = credential.user.uid;
-  const encPwd = await encryptPassword(password);
+  const config = fbGetApp().options;
+  const appName = `create-staff-${Date.now()}`;
+  const secondaryApp = initializeApp(config, appName);
+  const secondaryAuth = getAuth(secondaryApp);
+  const secondaryDb = getFirestore(secondaryApp);
 
-  await setDoc(doc(db, 'users', uid), {
-    shopId,
-    role,
-    name,
-    phone,
-    email,
-    active: true,
-    encryptedPassword: encPwd,
-    createdAt: Timestamp.now(),
-  });
+  try {
+    const cred = await createUserWithEmailAndPassword(secondaryAuth, email, password);
+    const uid = cred.user.uid;
 
-  return credential.user;
+    const encPwd = await encryptPassword(password);
+    // Use secondaryDb so Firestore sees the new employee's auth token
+    await setDoc(doc(secondaryDb, 'users', uid), {
+      shopId,
+      role,
+      name,
+      phone,
+      email,
+      active: true,
+      encryptedPassword: encPwd,
+      createdAt: Timestamp.now(),
+    });
+
+    return uid;
+  } finally {
+    // Fire-and-forget: don't let deleteApp errors mask actual errors
+    deleteApp(secondaryApp).catch(() => {});
+  }
 }
 
 // Đổi mật khẩu cho staff (dùng secondary Firebase app để không đăng xuất owner)
