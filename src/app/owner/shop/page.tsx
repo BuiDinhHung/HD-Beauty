@@ -319,7 +319,7 @@ type FormData = z.infer<typeof schema>;
 
 // ── Page ──────────────────────────────────────────────────────────────
 export default function OwnerShopPage() {
-  const { user, shop, refreshUser } = useAuth();
+  const { user, shop, refreshUser, isOwner } = useAuth();
   const hasShop = !!user?.shopId && !!shop;
 
   const [editing, setEditing]     = useState(false);
@@ -377,8 +377,14 @@ export default function OwnerShopPage() {
       toast.success('Đã cập nhật thông tin tiệm!');
       setEditing(false);
       await refreshUser();
-    } catch {
-      toast.error('Không thể lưu. Vui lòng thử lại.');
+    } catch (err: unknown) {
+      console.error('updateShop error:', err);
+      const code = (err as { code?: string }).code;
+      if (code === 'permission-denied') {
+        toast.error('Không có quyền. Firestore rules chưa được deploy.');
+      } else {
+        toast.error(`Không thể lưu: ${code ?? String(err)}`);
+      }
     } finally {
       setSubmitting(false);
     }
@@ -435,7 +441,7 @@ export default function OwnerShopPage() {
               <Card>
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="font-semibold text-gray-900 dark:text-gray-100">Thông tin tiệm</h3>
-                  {!editing && (
+                  {!editing && isOwner && (
                     <button onClick={startEditing}
                       className="flex items-center gap-1.5 text-xs text-primary-600 dark:text-primary-400 font-medium"
                     >

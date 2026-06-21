@@ -26,6 +26,7 @@ export default function LoginPage() {
   const router = useRouter();
   const [showPass, setShowPass] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [postLoginPending, setPostLoginPending] = useState(false);
 
   const {
     register,
@@ -34,18 +35,29 @@ export default function LoginPage() {
   } = useForm<FormData>({ resolver: zodResolver(schema) });
 
   useEffect(() => {
-    if (!loading && user) {
+    if (loading) return;
+    if (user) {
+      if (postLoginPending) {
+        toast.success('Đăng nhập thành công!');
+        setPostLoginPending(false);
+      }
       if (user.role === 'super_admin') router.replace('/super-admin/dashboard');
       else if (user.role === 'owner' || user.role === 'manager') router.replace('/owner/dashboard');
       else router.replace('/staff/home');
+    } else if (postLoginPending) {
+      // Firebase Auth OK nhưng tài khoản bị khóa hoặc không tồn tại trong hệ thống
+      toast.error('Tài khoản bị khóa hoặc không hợp lệ. Liên hệ admin.');
+      setPostLoginPending(false);
+      setSubmitting(false);
     }
-  }, [user, loading, router]);
+  }, [loading, postLoginPending, user, router]);
 
   const onSubmit = async (data: FormData) => {
     setSubmitting(true);
     try {
       await loginWithEmail(data.email, data.password);
-      toast.success('Đăng nhập thành công!');
+      setPostLoginPending(true);
+      // Không reset submitting ở đây — giữ loading state cho đến khi AuthContext xác nhận
     } catch (err: unknown) {
       const code = (err as { code?: string }).code;
       if (code === 'auth/user-not-found' || code === 'auth/wrong-password' || code === 'auth/invalid-credential') {
@@ -55,7 +67,6 @@ export default function LoginPage() {
       } else {
         toast.error('Đã có lỗi xảy ra');
       }
-    } finally {
       setSubmitting(false);
     }
   };

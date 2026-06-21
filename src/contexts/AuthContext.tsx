@@ -43,15 +43,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   async function loadUserData(fbUser: FirebaseUser) {
     try {
       const userDoc = await getDoc(doc(db, 'users', fbUser.uid));
-      if (userDoc.exists()) {
-        const userData = { id: userDoc.id, ...userDoc.data() } as User;
-        setUser(userData);
+      if (!userDoc.exists()) {
+        await signOut(auth);
+        return;
+      }
+      const userData = { id: userDoc.id, ...userDoc.data() } as User;
+      if (userData.active === false) {
+        await signOut(auth);
+        return;
+      }
+      setUser(userData);
 
-        if (userData.shopId) {
-          const shopDoc = await getDoc(doc(db, 'shops', userData.shopId));
-          if (shopDoc.exists()) {
-            setShop({ id: shopDoc.id, ...shopDoc.data() } as Shop);
-          }
+      if (userData.shopId) {
+        const shopDoc = await getDoc(doc(db, 'shops', userData.shopId));
+        if (shopDoc.exists()) {
+          setShop({ id: shopDoc.id, ...shopDoc.data() } as Shop);
         }
       }
     } catch (err) {
