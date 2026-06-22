@@ -74,40 +74,38 @@ export default function LoginPage() {
   if (loading) return null;
 
   return (
-    <div className="min-h-screen min-h-dvh bg-gradient-to-br from-primary-500 via-primary-400 to-secondary-400 flex items-center justify-center p-4 relative overflow-hidden">
+    <div className="min-h-screen min-h-dvh bg-gradient-to-br from-primary-500 via-primary-400 to-secondary-400 flex flex-col items-center justify-center p-4 gap-6 relative overflow-hidden">
       {/* decorative circles */}
       <div className="absolute -top-20 -right-20 w-72 h-72 rounded-full bg-white/10" />
       <div className="absolute -bottom-12 -left-12 w-52 h-52 rounded-full bg-white/10" />
 
-      {/* Card chứa toàn bộ nội dung */}
+      {/* Logo — nằm trên nền gradient, hiển thị tốt cả light lẫn dark */}
+      <motion.div
+        initial={{ scale: 0.85, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        transition={{ duration: 0.45, ease: 'easeOut' }}
+        className="relative z-10 flex flex-col items-center gap-1.5"
+      >
+        <Image
+          src="/logo_ngang.png"
+          alt="HD Beauty Manager"
+          width={220}
+          height={57}
+          className="drop-shadow-lg brightness-0 invert"
+          priority
+        />
+        <p className="text-xs text-white/70 tracking-widest uppercase font-medium">
+          Quản lý tiệm làm đẹp
+        </p>
+      </motion.div>
+
+      {/* Card — chỉ chứa form */}
       <motion.div
         initial={{ opacity: 0, y: 24 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, ease: 'easeOut' }}
-        className="relative z-10 w-full max-w-sm bg-white dark:bg-gray-900 rounded-3xl shadow-2xl p-8 space-y-6"
+        transition={{ duration: 0.5, ease: 'easeOut', delay: 0.1 }}
+        className="relative z-10 w-full max-w-sm bg-white dark:bg-gray-900 rounded-3xl shadow-2xl p-8 space-y-5"
       >
-        {/* Logo */}
-        <motion.div
-          initial={{ scale: 0.8, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          transition={{ delay: 0.1, type: 'spring', stiffness: 260, damping: 20 }}
-          className="flex flex-col items-center gap-1"
-        >
-          <Image
-            src="/logo_ngang.png"
-            alt="HD Beauty Manager"
-            width={240}
-            height={62}
-            className="drop-shadow-md"
-            priority
-          />
-          <p className="text-xs text-gray-400 tracking-widest uppercase font-medium mt-1">
-            Quản lý tiệm làm đẹp
-          </p>
-        </motion.div>
-
-        <div className="h-px bg-gray-100 dark:bg-gray-800" />
-
         {/* Form */}
         <div className="space-y-4">
           <div>

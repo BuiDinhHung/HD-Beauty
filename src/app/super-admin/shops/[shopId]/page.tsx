@@ -26,7 +26,7 @@ import { decryptPassword } from '@/lib/crypto';
 import { Shop, StaffReport, ServiceReport, Transaction, User, UserRole, Service } from '@/types';
 import { formatCurrency, exportToExcel, exportToPDF } from '@/lib/utils';
 import Image from 'next/image';
-import { format, startOfMonth, endOfMonth, subMonths, parseISO } from 'date-fns';
+import { format, startOfMonth, endOfMonth, subDays, startOfDay, endOfDay, parseISO } from 'date-fns';
 import { vi } from 'date-fns/locale';
 import Card from '@/components/ui/Card';
 import StatCard from '@/components/shared/StatCard';
@@ -704,13 +704,16 @@ function StaffTab({ shopId, staff, loading }: {
 
 // ── Tab: Giao dịch ───────────────────────────────────────────────────────────
 
+type TxFilterMode = 'all' | 'month' | 'week' | 'custom';
+
 function TransactionsTab({ transactions, loading }: { transactions: Transaction[]; loading: boolean }) {
-  const [search, setSearch]       = useState('');
+  const [search, setSearch]           = useState('');
   const [staffFilter, setStaffFilter] = useState('');
-  const [dateFrom, setDateFrom]   = useState('');
-  const [dateTo, setDateTo]       = useState('');
-  const [deleteTx, setDeleteTx]   = useState<Transaction | null>(null);
-  const [deleting, setDeleting]   = useState(false);
+  const [filterMode, setFilterMode]   = useState<TxFilterMode>('all');
+  const [customFrom, setCustomFrom]   = useState(format(startOfMonth(new Date()), 'yyyy-MM-dd'));
+  const [customTo, setCustomTo]       = useState(format(new Date(), 'yyyy-MM-dd'));
+  const [deleteTx, setDeleteTx]       = useState<Transaction | null>(null);
+  const [deleting, setDeleting]       = useState(false);
 
   const staffNames = useMemo(() => {
     const map = new Map<string, string>();
@@ -718,16 +721,46 @@ function TransactionsTab({ transactions, loading }: { transactions: Transaction[
     return Array.from(map.entries());
   }, [transactions]);
 
+  const { dateFrom, dateTo, rangeLabel, rangeFilename } = useMemo(() => {
+    const today = new Date();
+    if (filterMode === 'month') {
+      return {
+        dateFrom: startOfMonth(today),
+        dateTo: endOfMonth(today),
+        rangeLabel: format(today, 'MMMM yyyy', { locale: vi }),
+        rangeFilename: format(today, 'yyyy-MM'),
+      };
+    }
+    if (filterMode === 'week') {
+      const from = startOfDay(subDays(today, 6));
+      return {
+        dateFrom: from,
+        dateTo: endOfDay(today),
+        rangeLabel: `${format(from, 'dd/MM')} – ${format(today, 'dd/MM/yyyy')}`,
+        rangeFilename: `7ngay-${format(today, 'yyyyMMdd')}`,
+      };
+    }
+    if (filterMode === 'custom') {
+      const from = startOfDay(parseISO(customFrom));
+      const to   = endOfDay(parseISO(customTo));
+      return {
+        dateFrom: from,
+        dateTo: to,
+        rangeLabel: `${format(from, 'dd/MM/yyyy')} – ${format(to, 'dd/MM/yyyy')}`,
+        rangeFilename: `${format(from, 'yyyyMMdd')}-${format(to, 'yyyyMMdd')}`,
+      };
+    }
+    return { dateFrom: null, dateTo: null, rangeLabel: 'Tất cả', rangeFilename: 'tat-ca' };
+  }, [filterMode, customFrom, customTo]);
+
   const filtered = useMemo(() => {
     return transactions.filter((t) => {
       const matchSearch = !search || t.customerName.toLowerCase().includes(search.toLowerCase()) || t.staffName.toLowerCase().includes(search.toLowerCase());
       const matchStaff  = !staffFilter || t.staffId === staffFilter;
       let matchDate = true;
-      if (dateFrom) {
-        const from = new Date(dateFrom);
-        const to   = dateTo ? new Date(dateTo + 'T23:59:59') : new Date();
-        const d    = t.createdAt.toDate();
-        matchDate  = d >= from && d <= to;
+      if (dateFrom && dateTo) {
+        const d = t.createdAt.toDate();
+        matchDate = d >= dateFrom && d <= dateTo;
       }
       return matchSearch && matchStaff && matchDate;
     });
@@ -749,29 +782,105 @@ function TransactionsTab({ transactions, loading }: { transactions: Transaction[
     }
   };
 
+  const staffSuffix = staffFilter
+    ? `-${(staffNames.find(([id]) => id === staffFilter)?.[1] ?? staffFilter).replace(/\s+/g, '-')}`
+    : '';
+  const exportFilename = `giao-dich-${rangeFilename}${staffSuffix}`;
+  const exportTitle    = `Giao dịch – ${rangeLabel}${staffFilter ? ` · ${staffNames.find(([id]) => id === staffFilter)?.[1] ?? ''}` : ''}`;
+
+  const handleExportExcel = () => {
+    exportToExcel(
+      filtered.map((t) => ({
+        'Ngày': format(t.createdAt.toDate(), 'dd/MM/yyyy HH:mm'),
+        'Khách hàng': t.customerName,
+        'Nhân viên': t.staffName,
+        'Dịch vụ': t.serviceNames.join(', '),
+        'Số tiền (€)': t.totalAmount,
+      })),
+      exportFilename
+    );
+  };
+
+  const handleExportPDF = () => {
+    exportToPDF(
+      exportTitle,
+      ['Ngày', 'Khách hàng', 'Nhân viên', 'Dịch vụ', 'Số tiền'],
+      filtered.map((t) => [
+        format(t.createdAt.toDate(), 'dd/MM/yyyy'),
+        t.customerName,
+        t.staffName,
+        t.serviceNames.join(', '),
+        formatCurrency(t.totalAmount),
+      ]),
+      exportFilename
+    );
+  };
+
   return (
     <>
       <SearchBar placeholder="Tìm khách, nhân viên..." value={search} onChange={(e) => setSearch(e.target.value)} onClear={() => setSearch('')} />
 
-      <Card padding="sm">
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="text-xs text-gray-500 mb-1 block">Nhân viên</label>
-            <select
-              className="w-full h-9 px-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-primary-400"
-              value={staffFilter}
-              onChange={(e) => setStaffFilter(e.target.value)}
-            >
-              <option value="">Tất cả</option>
-              {staffNames.map(([id, name]) => <option key={id} value={id}>{name}</option>)}
-            </select>
-          </div>
-          <div>
+      {/* Filter pills */}
+      <div className="flex gap-2 overflow-x-auto pb-0.5 -mx-1 px-1">
+        {([
+          { value: 'all', label: 'Tất cả' },
+          { value: 'month', label: 'Tháng này' },
+          { value: 'week', label: '7 ngày gần nhất' },
+          { value: 'custom', label: 'Tùy chọn' },
+        ] as const).map((opt) => (
+          <button
+            key={opt.value}
+            onClick={() => setFilterMode(opt.value)}
+            className={`flex-shrink-0 whitespace-nowrap px-4 py-2 rounded-full text-xs font-medium transition-all ${
+              filterMode === opt.value
+                ? 'bg-gradient-primary text-white shadow-glass'
+                : 'bg-white dark:bg-gray-900 text-gray-500 border border-gray-200 dark:border-gray-700'
+            }`}
+          >
+            {opt.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Custom date range */}
+      {filterMode === 'custom' && (
+        <div className="flex gap-2 items-end">
+          <div className="flex-1">
             <label className="text-xs text-gray-500 mb-1 block">Từ ngày</label>
-            <input type="date" className="w-full h-9 px-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
+            <input type="date" value={customFrom} max={customTo} onChange={(e) => setCustomFrom(e.target.value)}
+              className="w-full h-10 px-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400" />
+          </div>
+          <span className="text-gray-400 pb-2">→</span>
+          <div className="flex-1">
+            <label className="text-xs text-gray-500 mb-1 block">Đến ngày</label>
+            <input type="date" value={customTo} min={customFrom} max={format(new Date(), 'yyyy-MM-dd')} onChange={(e) => setCustomTo(e.target.value)}
+              className="w-full h-10 px-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400" />
           </div>
         </div>
-      </Card>
+      )}
+
+      {/* Staff filter */}
+      <div>
+        <label className="text-xs text-gray-500 mb-1 block">Nhân viên</label>
+        <select
+          className="w-full h-9 px-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-primary-400"
+          value={staffFilter}
+          onChange={(e) => setStaffFilter(e.target.value)}
+        >
+          <option value="">Tất cả nhân viên</option>
+          {staffNames.map(([id, name]) => <option key={id} value={id}>{name}</option>)}
+        </select>
+      </div>
+
+      {/* Export */}
+      <div className="flex gap-2">
+        <Button variant="outline" size="sm" onClick={handleExportExcel} className="flex-1">
+          <Image src="/export excel.png" alt="Excel" width={16} height={16} /> Excel
+        </Button>
+        <Button variant="outline" size="sm" onClick={handleExportPDF} className="flex-1">
+          <Image src="/export pdf.png" alt="PDF" width={16} height={16} /> PDF
+        </Button>
+      </div>
 
       {filtered.length > 0 && (
         <div className="bg-gradient-primary rounded-2xl p-4 text-white">
@@ -952,9 +1061,14 @@ function ServicesTab({ shopId, services, loading }: {
 
 // ── Tab: Báo cáo ─────────────────────────────────────────────────────────────
 
+type RptFilterMode = 'month' | 'week' | 'custom';
+
 function ReportsTab({ transactions, shopName, staff }: { transactions: Transaction[]; shopName: string; staff: User[] }) {
-  const [selectedMonth, setSelectedMonth] = useState(format(new Date(), 'yyyy-MM'));
-  const [reportTab, setReportTab] = useState<'staff' | 'service'>('staff');
+  const [filterMode, setFilterMode]       = useState<RptFilterMode>('month');
+  const [customFrom, setCustomFrom]       = useState(format(startOfMonth(new Date()), 'yyyy-MM-dd'));
+  const [customTo, setCustomTo]           = useState(format(new Date(), 'yyyy-MM-dd'));
+  const [selectedStaffId, setSelectedStaffId] = useState<string>('all');
+  const [reportTab, setReportTab]         = useState<'staff' | 'service'>('staff');
 
   const staffNameMap = useMemo(() => {
     const map: Record<string, string> = {};
@@ -962,34 +1076,59 @@ function ReportsTab({ transactions, shopName, staff }: { transactions: Transacti
     return map;
   }, [staff]);
 
-  const months = Array.from({ length: 6 }, (_, i) => {
-    const d = subMonths(new Date(), i);
-    return { value: format(d, 'yyyy-MM'), label: format(d, 'MM/yyyy') };
-  });
+  const { dateFrom, dateTo, rangeLabel, rangeFilename } = useMemo(() => {
+    const today = new Date();
+    if (filterMode === 'month') {
+      return {
+        dateFrom: startOfMonth(today),
+        dateTo: endOfMonth(today),
+        rangeLabel: format(today, 'MMMM yyyy', { locale: vi }),
+        rangeFilename: format(today, 'yyyy-MM'),
+      };
+    }
+    if (filterMode === 'week') {
+      const from = startOfDay(subDays(today, 6));
+      return {
+        dateFrom: from,
+        dateTo: endOfDay(today),
+        rangeLabel: `${format(from, 'dd/MM')} – ${format(today, 'dd/MM/yyyy')}`,
+        rangeFilename: `7ngay-${format(today, 'yyyyMMdd')}`,
+      };
+    }
+    const from = startOfDay(parseISO(customFrom));
+    const to   = endOfDay(parseISO(customTo));
+    return {
+      dateFrom: from,
+      dateTo: to,
+      rangeLabel: `${format(from, 'dd/MM/yyyy')} – ${format(to, 'dd/MM/yyyy')}`,
+      rangeFilename: `${format(from, 'yyyyMMdd')}-${format(to, 'yyyyMMdd')}`,
+    };
+  }, [filterMode, customFrom, customTo]);
 
-  const monthDate  = parseISO(`${selectedMonth}-01`);
-  const monthStart = startOfMonth(monthDate);
-  const monthEnd   = endOfMonth(monthDate);
-  const monthLabel = format(monthDate, 'MMMM yyyy', { locale: vi });
+  const staffSuffix = selectedStaffId !== 'all'
+    ? `-${(staffNameMap[selectedStaffId] ?? selectedStaffId).replace(/\s+/g, '-')}`
+    : '';
 
-  const monthTx = useMemo(() => transactions.filter((t) => {
+  const filteredTx = useMemo(() => transactions.filter((t) => {
     const d = t.createdAt.toDate();
-    return d >= monthStart && d <= monthEnd;
-  }), [transactions, monthStart, monthEnd]);
+    const inRange = d >= dateFrom && d <= dateTo;
+    const inStaff = selectedStaffId === 'all' || t.staffId === selectedStaffId;
+    return inRange && inStaff;
+  }), [transactions, dateFrom, dateTo, selectedStaffId]);
 
   const staffReports = useMemo((): StaffReport[] => {
     const map: Record<string, StaffReport> = {};
-    monthTx.forEach((t) => {
+    filteredTx.forEach((t) => {
       if (!map[t.staffId]) map[t.staffId] = { staffId: t.staffId, staffName: staffNameMap[t.staffId] ?? t.staffName, customerCount: 0, totalRevenue: 0, avgRevenue: 0 };
       map[t.staffId].customerCount += 1;
       map[t.staffId].totalRevenue  += t.totalAmount;
     });
     return Object.values(map).map((r) => ({ ...r, avgRevenue: r.customerCount > 0 ? r.totalRevenue / r.customerCount : 0 })).sort((a, b) => b.totalRevenue - a.totalRevenue);
-  }, [monthTx, staffNameMap]);
+  }, [filteredTx, staffNameMap]);
 
   const serviceReports = useMemo((): ServiceReport[] => {
     const map: Record<string, ServiceReport> = {};
-    monthTx.forEach((t) => {
+    filteredTx.forEach((t) => {
       t.serviceIds.forEach((sid, idx) => {
         if (!map[sid]) map[sid] = { serviceId: sid, serviceName: t.serviceNames[idx] || sid, usageCount: 0, totalRevenue: 0 };
         map[sid].usageCount  += 1;
@@ -997,9 +1136,20 @@ function ReportsTab({ transactions, shopName, staff }: { transactions: Transacti
       });
     });
     return Object.values(map).sort((a, b) => b.usageCount - a.usageCount);
-  }, [monthTx]);
+  }, [filteredTx]);
 
-  const totalRevenue = monthTx.reduce((s, t) => s + t.totalAmount, 0);
+  const totalRevenue = filteredTx.reduce((s, t) => s + t.totalAmount, 0);
+
+  const reportTitle = (tab: 'staff' | 'service') => {
+    const staffLabel = selectedStaffId !== 'all' ? ` · ${staffNameMap[selectedStaffId] ?? ''}` : '';
+    return tab === 'staff'
+      ? `Báo cáo nhân viên – ${shopName} – ${rangeLabel}${staffLabel}`
+      : `Báo cáo dịch vụ – ${shopName} – ${rangeLabel}${staffLabel}`;
+  };
+  const filenameFor = (tab: 'staff' | 'service') =>
+    tab === 'staff'
+      ? `${shopName}-bao-cao-nhan-vien-${rangeFilename}${staffSuffix}`
+      : `${shopName}-bao-cao-dich-vu-${rangeFilename}${staffSuffix}`;
 
   const handleExportExcel = () => {
     if (reportTab === 'staff') {
@@ -1007,19 +1157,19 @@ function ReportsTab({ transactions, shopName, staff }: { transactions: Transacti
         staffReports.map((r) => ({
           'Nhân viên': r.staffName,
           'Số khách': r.customerCount,
-          'Doanh thu': r.totalRevenue,
-          'Trung bình/khách': Math.round(r.avgRevenue),
+          'Doanh thu (€)': r.totalRevenue,
+          'TB/khách (€)': Math.round(r.avgRevenue),
         })),
-        `${shopName}-bao-cao-nhan-vien-${selectedMonth}`
+        filenameFor('staff')
       );
     } else {
       exportToExcel(
         serviceReports.map((r) => ({
           'Dịch vụ': r.serviceName,
           'Số lượt': r.usageCount,
-          'Doanh thu': Math.round(r.totalRevenue),
+          'Doanh thu (€)': Math.round(r.totalRevenue),
         })),
-        `${shopName}-bao-cao-dich-vu-${selectedMonth}`
+        filenameFor('service')
       );
     }
   };
@@ -1027,26 +1177,17 @@ function ReportsTab({ transactions, shopName, staff }: { transactions: Transacti
   const handleExportPDF = () => {
     if (reportTab === 'staff') {
       exportToPDF(
-        `Báo cáo nhân viên - ${shopName} - ${monthLabel}`,
+        reportTitle('staff'),
         ['Nhân viên', 'Số khách', 'Doanh thu', 'TB/khách'],
-        staffReports.map((r) => [
-          r.staffName,
-          r.customerCount,
-          formatCurrency(r.totalRevenue),
-          formatCurrency(r.avgRevenue),
-        ]),
-        `${shopName}-bao-cao-nhan-vien-${selectedMonth}`
+        staffReports.map((r) => [r.staffName, r.customerCount, formatCurrency(r.totalRevenue), formatCurrency(r.avgRevenue)]),
+        filenameFor('staff')
       );
     } else {
       exportToPDF(
-        `Báo cáo dịch vụ - ${shopName} - ${monthLabel}`,
+        reportTitle('service'),
         ['Dịch vụ', 'Số lượt', 'Doanh thu'],
-        serviceReports.map((r) => [
-          r.serviceName,
-          r.usageCount,
-          formatCurrency(r.totalRevenue),
-        ]),
-        `${shopName}-bao-cao-dich-vu-${selectedMonth}`
+        serviceReports.map((r) => [r.serviceName, r.usageCount, formatCurrency(r.totalRevenue)]),
+        filenameFor('service')
       );
     }
   };
@@ -1054,49 +1195,73 @@ function ReportsTab({ transactions, shopName, staff }: { transactions: Transacti
   const handlePrint = () => {
     if (reportTab === 'staff') {
       exportToPDF(
-        `Báo cáo nhân viên - ${shopName} - ${monthLabel}`,
+        reportTitle('staff'),
         ['Nhân viên', 'Số khách', 'Doanh thu', 'TB/khách'],
-        staffReports.map((r) => [
-          r.staffName,
-          r.customerCount,
-          formatCurrency(r.totalRevenue),
-          formatCurrency(r.avgRevenue),
-        ]),
-        `${shopName}-bao-cao-nhan-vien-${selectedMonth}`
+        staffReports.map((r) => [r.staffName, r.customerCount, formatCurrency(r.totalRevenue), formatCurrency(r.avgRevenue)]),
+        filenameFor('staff')
       );
     } else {
       exportToPDF(
-        `Báo cáo dịch vụ - ${shopName} - ${monthLabel}`,
+        reportTitle('service'),
         ['Dịch vụ', 'Số lượt', 'Doanh thu'],
-        serviceReports.map((r) => [
-          r.serviceName,
-          r.usageCount,
-          formatCurrency(r.totalRevenue),
-        ]),
-        `${shopName}-bao-cao-dich-vu-${selectedMonth}`
+        serviceReports.map((r) => [r.serviceName, r.usageCount, formatCurrency(r.totalRevenue)]),
+        filenameFor('service')
       );
     }
   };
 
   return (
     <>
-      <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1 no-scrollbar">
-        {months.map((m) => (
+      {/* Filter pills */}
+      <div className="flex gap-2 overflow-x-auto pb-0.5 -mx-1 px-1">
+        {([
+          { value: 'month', label: 'Tháng này' },
+          { value: 'week', label: '7 ngày gần nhất' },
+          { value: 'custom', label: 'Tùy chọn' },
+        ] as const).map((opt) => (
           <button
-            key={m.value}
-            onClick={() => setSelectedMonth(m.value)}
-            className={`flex-shrink-0 px-4 py-1.5 rounded-full text-sm font-medium transition-all ${
-              selectedMonth === m.value
+            key={opt.value}
+            onClick={() => setFilterMode(opt.value)}
+            className={`flex-shrink-0 whitespace-nowrap px-4 py-1.5 rounded-full text-xs font-medium transition-all ${
+              filterMode === opt.value
                 ? 'bg-gradient-primary text-white shadow-sm'
                 : 'bg-white dark:bg-gray-900 text-gray-500 border border-gray-200 dark:border-gray-700'
             }`}
           >
-            {m.label}
+            {opt.label}
           </button>
         ))}
       </div>
 
-      <div className="text-xs text-center text-gray-400 font-medium">{monthLabel}</div>
+      {/* Custom date range */}
+      {filterMode === 'custom' && (
+        <div className="flex gap-2 items-end">
+          <div className="flex-1">
+            <label className="text-xs text-gray-500 mb-1 block">Từ ngày</label>
+            <input type="date" value={customFrom} max={customTo} onChange={(e) => setCustomFrom(e.target.value)}
+              className="w-full h-10 px-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400" />
+          </div>
+          <span className="text-gray-400 pb-2">→</span>
+          <div className="flex-1">
+            <label className="text-xs text-gray-500 mb-1 block">Đến ngày</label>
+            <input type="date" value={customTo} min={customFrom} max={format(new Date(), 'yyyy-MM-dd')} onChange={(e) => setCustomTo(e.target.value)}
+              className="w-full h-10 px-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400" />
+          </div>
+        </div>
+      )}
+
+      {/* Staff filter */}
+      <div>
+        <label className="text-xs text-gray-500 mb-1 block">Lọc theo nhân viên</label>
+        <select
+          value={selectedStaffId}
+          onChange={(e) => setSelectedStaffId(e.target.value)}
+          className="w-full h-9 px-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-primary-400"
+        >
+          <option value="all">Tất cả nhân viên</option>
+          {staff.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+        </select>
+      </div>
 
       <div className="grid grid-cols-3 gap-3">
         <Card padding="sm" className="text-center">
@@ -1105,7 +1270,7 @@ function ReportsTab({ transactions, shopName, staff }: { transactions: Transacti
         </Card>
         <Card padding="sm" className="text-center">
           <p className="text-xs text-gray-400 mb-1">Giao dịch</p>
-          <p className="font-bold text-gray-900 dark:text-gray-100 text-sm">{monthTx.length}</p>
+          <p className="font-bold text-gray-900 dark:text-gray-100 text-sm">{filteredTx.length}</p>
         </Card>
         <Card padding="sm" className="text-center">
           <p className="text-xs text-gray-400 mb-1">Nhân viên</p>
