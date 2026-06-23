@@ -92,6 +92,7 @@ export default function StaffHistoryPage() {
       filtered.map((t) => ({
         'Ngày': format(t.createdAt.toDate(), 'dd/MM/yyyy HH:mm'),
         'Khách hàng': t.customerName,
+        'SĐT': t.customerPhone,
         'Dịch vụ': t.serviceNames.join(', '),
         'Số tiền (€)': t.totalAmount,
       })),
@@ -102,10 +103,11 @@ export default function StaffHistoryPage() {
   const handleExportPDF = () => {
     exportToPDF(
       exportTitle,
-      ['Ngày', 'Khách hàng', 'Dịch vụ', 'Số tiền'],
+      ['Ngày', 'Khách hàng', 'SĐT', 'Dịch vụ', 'Số tiền'],
       filtered.map((t) => [
         format(t.createdAt.toDate(), 'dd/MM/yyyy'),
         t.customerName,
+        t.customerPhone,
         t.serviceNames.join(', '),
         formatCurrency(t.totalAmount),
       ]),

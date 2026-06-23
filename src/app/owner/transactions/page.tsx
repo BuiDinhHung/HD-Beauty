@@ -127,6 +127,7 @@ export default function TransactionsPage() {
       filtered.map((t) => ({
         'Ngày': format(t.createdAt.toDate(), 'dd/MM/yyyy HH:mm'),
         'Khách hàng': t.customerName,
+        'SĐT': t.customerPhone,
         'Nhân viên': t.staffName,
         'Dịch vụ': t.serviceNames.join(', '),
         'Số tiền (€)': t.totalAmount,
@@ -138,10 +139,11 @@ export default function TransactionsPage() {
   const handleExportPDF = () => {
     exportToPDF(
       exportTitle,
-      ['Ngày', 'Khách hàng', 'Nhân viên', 'Dịch vụ', 'Số tiền'],
+      ['Ngày', 'Khách hàng', 'SĐT', 'Nhân viên', 'Dịch vụ', 'Số tiền'],
       filtered.map((t) => [
         format(t.createdAt.toDate(), 'dd/MM/yyyy'),
         t.customerName,
+        t.customerPhone,
         t.staffName,
         t.serviceNames.join(', '),
         formatCurrency(t.totalAmount),
