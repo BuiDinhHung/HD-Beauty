@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>HD Beauty Manager — Giới thiệu sản phẩm</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Segoe UI', Arial, sans-serif;
+      font-size: 13px;
+      line-height: 1.65;
+      color: #1a1a2e;
+      background: #fff;
+    }
+
+    .page {
+      max-width: 860px;
+      margin: 0 auto;
+      padding: 48px 52px;
+    }
+
+    /* ── Cover ─────────────────────────────────────────── */
+    .cover {
+      text-align: center;
+      padding: 56px 0 44px;
+      margin-bottom: 44px;
+      border-bottom: 3px solid #7c3aed;
+    }
+    .brand {
+      display: inline-flex;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 24px;
+    }
+    .brand-icon {
+      width: 64px; height: 64px;
+      border-radius: 20px;
+      background: linear-gradient(135deg, #7c3aed, #a855f7);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 28px;
+      box-shadow: 0 8px 24px #7c3aed33;
+    }
+    .brand-text { text-align: left; }
+    .brand-text h1 { font-size: 30px; font-weight: 800; color: #7c3aed; line-height: 1; }
+    .brand-text p { font-size: 13px; color: #9ca3af; margin-top: 3px; }
+
+    .cover-tagline {
+      font-size: 16px;
+      color: #374151;
+      max-width: 520px;
+      margin: 0 auto 28px;
+      line-height: 1.7;
+    }
+    .cover-tagline b { color: #7c3aed; }
+
+    .cover-badges {
+      display: inline-flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    .badge {
+      background: #f5f3ff;
+      border: 1px solid #ddd6fe;
+      border-radius: 20px;
+      padding: 5px 14px;
+      font-size: 12px;
+      font-weight: 600;
+      color: #6d28d9;
+    }
+
+    /* ── Section ───────────────────────────────────────── */
+    .section { margin-bottom: 40px; }
+
+    .section-title {
+      font-size: 17px;
+      font-weight: 800;
+      color: #7c3aed;
+      margin-bottom: 18px;
+      padding-bottom: 10px;
+      border-bottom: 2px solid #ede9fe;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .section-title .icon { font-size: 20px; }
+
+    h3 {
+      font-size: 13px;
+      font-weight: 700;
+      color: #374151;
+      margin: 14px 0 8px;
+    }
+
+    p { color: #4b5563; margin-bottom: 8px; }
+
+    /* ── Role cards ────────────────────────────────────── */
+    .role-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+    }
+    .role-card {
+      border-radius: 14px;
+      padding: 18px 16px;
+      border: 1.5px solid transparent;
+    }
+    .role-card .role-icon { font-size: 26px; margin-bottom: 10px; }
+    .role-card .role-name { font-size: 14px; font-weight: 800; margin-bottom: 6px; }
+    .role-card .role-who { font-size: 11px; font-weight: 600; margin-bottom: 8px; opacity: .7; text-transform: uppercase; letter-spacing: .4px; }
+    .role-card ul { padding-left: 14px; }
+    .role-card ul li { font-size: 11.5px; color: #4b5563; margin-bottom: 3px; line-height: 1.5; }
+
+    .rc-owner   { background: #faf5ff; border-color: #ddd6fe; }
+    .rc-owner   .role-name { color: #7c3aed; }
+    .rc-manager { background: #eff6ff; border-color: #bfdbfe; }
+    .rc-manager .role-name { color: #2563eb; }
+    .rc-staff   { background: #f0fdf4; border-color: #bbf7d0; }
+    .rc-staff   .role-name { color: #16a34a; }
+
+    /* ── Feature list ──────────────────────────────────── */
+    .feature-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    .feature-card {
+      background: #fafafa;
+      border: 1px solid #f0f0f0;
+      border-radius: 12px;
+      padding: 16px;
+    }
+    .feature-card .fc-icon { font-size: 22px; margin-bottom: 8px; }
+    .feature-card .fc-title { font-size: 13px; font-weight: 700; color: #111827; margin-bottom: 6px; }
+    .feature-card .fc-desc { font-size: 12px; color: #6b7280; line-height: 1.6; }
+
+    /* ── Report table ──────────────────────────────────── */
+    table { width: 100%; border-collapse: collapse; margin: 10px 0; }
+    th {
+      background: #7c3aed;
+      color: #fff;
+      font-size: 11.5px;
+      padding: 9px 12px;
+      text-align: left;
+      font-weight: 600;
+    }
+    td { font-size: 12px; padding: 8px 12px; border-bottom: 1px solid #f3f4f6; color: #374151; vertical-align: top; }
+    tr:nth-child(even) td { background: #faf5ff; }
+    .check { color: #16a34a; font-weight: 700; }
+    .dash  { color: #d1d5db; }
+
+    /* ── Flow steps ────────────────────────────────────── */
+    .flow {
+      display: flex;
+      align-items: flex-start;
+      gap: 0;
+      margin: 14px 0;
+      counter-reset: step;
+    }
+    .flow-step {
+      flex: 1;
+      position: relative;
+      padding: 0 8px;
+    }
+    .flow-step::before {
+      counter-increment: step;
+      content: counter(step);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 26px; height: 26px;
+      border-radius: 50%;
+      background: #7c3aed;
+      color: #fff;
+      font-size: 11px;
+      font-weight: 700;
+      margin: 0 auto 8px;
+    }
+    .flow-step::after {
+      content: '';
+      position: absolute;
+      top: 13px;
+      left: calc(50% + 13px);
+      right: calc(-50% + 13px);
+      height: 2px;
+      background: #ddd6fe;
+    }
+    .flow-step:last-child::after { display: none; }
+    .flow-step .fs-label {
+      text-align: center;
+      font-size: 11px;
+      font-weight: 600;
+      color: #374151;
+      line-height: 1.4;
+    }
+
+    /* ── Highlight box ─────────────────────────────────── */
+    .highlight {
+      background: linear-gradient(135deg, #f5f3ff, #faf5ff);
+      border: 1.5px solid #c4b5fd;
+      border-radius: 12px;
+      padding: 16px 18px;
+      margin: 14px 0;
+    }
+    .highlight .hl-title { font-weight: 700; color: #6d28d9; font-size: 13px; margin-bottom: 8px; }
+    .pill-row { display: flex; gap: 8px; flex-wrap: wrap; }
+    .pill {
+      background: #7c3aed;
+      color: #fff;
+      border-radius: 20px;
+      padding: 3px 12px;
+      font-size: 11.5px;
+      font-weight: 600;
+    }
+    .pill.soft {
+      background: #fff;
+      color: #7c3aed;
+      border: 1.5px solid #c4b5fd;
+    }
+
+    /* ── Footer ────────────────────────────────────────── */
+    .footer {
+      margin-top: 48px;
+      padding-top: 18px;
+      border-top: 2px solid #ede9fe;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 11px;
+      color: #9ca3af;
+    }
+    .footer b { color: #7c3aed; }
+
+    /* ── Print ─────────────────────────────────────────── */
+    @media print {
+      body { font-size: 11.5px; }
+      .page { padding: 24px 32px; }
+      .cover { padding: 30px 0 28px; margin-bottom: 28px; }
+      .section { margin-bottom: 26px; page-break-inside: avoid; }
+      .feature-grid, .role-grid { page-break-inside: avoid; }
+      @page { margin: 1.2cm; size: A4; }
+    }
+  </style>
+</head>
+<body>
+<div class="page">
+
+  <!-- Cover -->
+  <div class="cover">
+    <div class="brand">
+      <div class="brand-icon">💅</div>
+      <div class="brand-text">
+        <h1>HD Beauty Manager</h1>
+        <p>Phần mềm quản lý tiệm làm đẹp</p>
+      </div>
+    </div>
+    <p class="cover-tagline">
+      Giải pháp quản lý tiệm làm đẹp <b>toàn diện</b> — từ giao dịch hàng ngày,
+      theo dõi hiệu suất nhân viên, đến xuất báo cáo doanh thu chuyên nghiệp.
+      Hoạt động mượt mà trên mọi thiết bị.
+    </p>
+    <div class="cover-badges">
+      <span class="badge">📱 Mobile & Desktop</span>
+      <span class="badge">⚡ Dữ liệu thời gian thực</span>
+      <span class="badge">📊 Báo cáo Excel & PDF</span>
+      <span class="badge">🔒 Phân quyền đa cấp</span>
+      <span class="badge">💶 Tiền tệ EUR (€)</span>
+    </div>
+  </div>
+
+  <!-- 1. Tổng quan -->
+  <div class="section">
+    <div class="section-title"><span class="icon">🌟</span> Tổng quan sản phẩm</div>
+    <p>
+      <b>HD Beauty Manager</b> là ứng dụng web quản lý tiệm làm đẹp chạy trực tiếp trên trình duyệt, không cần cài đặt.
+      Hệ thống hỗ trợ quản lý đồng thời nhiều chi nhánh, với dữ liệu được đồng bộ theo thời gian thực giữa tất cả thiết bị.
+    </p>
+    <p>
+      Mọi thao tác từ ghi nhận giao dịch, quản lý nhân viên, theo dõi doanh thu đến xuất báo cáo đều được tích hợp trong một nền tảng duy nhất — giúp chủ tiệm nắm bắt tình hình kinh doanh mọi lúc, mọi nơi.
+    </p>
+
+    <div class="feature-grid" style="margin-top:16px">
+      <div class="feature-card">
+        <div class="fc-icon">⚡</div>
+        <div class="fc-title">Thời gian thực</div>
+        <div class="fc-desc">Giao dịch vừa tạo xong lập tức hiện trên màn hình quản lý — không cần refresh, không chậm trễ.</div>
+      </div>
+      <div class="feature-card">
+        <div class="fc-icon">📱</div>
+        <div class="fc-title">Đa thiết bị</div>
+        <div class="fc-desc">Giao diện tối ưu cho cả điện thoại và máy tính. Nhân viên dùng điện thoại, chủ tiệm dùng máy tính bảng hoặc laptop.</div>
+      </div>
+      <div class="feature-card">
+        <div class="fc-icon">🔒</div>
+        <div class="fc-title">Bảo mật & phân quyền</div>
+        <div class="fc-desc">Mỗi vai trò chỉ thấy đúng những gì mình cần. Nhân viên không xem được dữ liệu của nhân viên khác.</div>
+      </div>
+      <div class="feature-card">
+        <div class="fc-icon">☁️</div>
+        <div class="fc-title">Lưu trữ đám mây</div>
+        <div class="fc-desc">Dữ liệu lưu trên Google Firebase — an toàn, tự động sao lưu, không lo mất dữ liệu khi thay thiết bị.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 2. Đối tượng sử dụng -->
+  <div class="section">
+    <div class="section-title"><span class="icon">👥</span> Đối tượng sử dụng</div>
+    <div class="role-grid">
+      <div class="role-card rc-owner">
+        <div class="role-icon">🏪</div>
+        <div class="role-who">Chủ tiệm</div>
+        <div class="role-name">Owner</div>
+        <ul>
+          <li>Xem toàn bộ doanh thu</li>
+          <li>Quản lý nhân viên & dịch vụ</li>
+          <li>Xem & xuất báo cáo</li>
+          <li>Theo dõi hiệu suất từng người</li>
+          <li>Cài đặt thông tin tiệm</li>
+        </ul>
+      </div>
+      <div class="role-card rc-manager">
+        <div class="role-icon">📋</div>
+        <div class="role-who">Quản lý</div>
+        <div class="role-name">Manager</div>
+        <ul>
+          <li>Quyền tương tự chủ tiệm</li>
+          <li>Quản lý nhân viên cấp dưới</li>
+          <li>Xem & xuất báo cáo</li>
+          <li>Theo dõi giao dịch toàn tiệm</li>
+        </ul>
+      </div>
+      <div class="role-card rc-staff">
+        <div class="role-icon">✂️</div>
+        <div class="role-who">Nhân viên</div>
+        <div class="role-name">Staff</div>
+        <ul>
+          <li>Ghi nhận giao dịch mới</li>
+          <li>Xem lịch sử GD của bản thân</li>
+          <li>Xem doanh thu cá nhân</li>
+          <li>Xuất lịch sử Excel/PDF</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3. Tính năng chính -->
+  <div class="section">
+    <div class="section-title"><span class="icon">✨</span> Tính năng chính</div>
+
+    <h3>📝 Ghi nhận giao dịch</h3>
+    <p>Nhân viên tạo giao dịch nhanh chóng: chọn dịch vụ (giá tự động tính), nhập tên & số điện thoại khách, áp dụng giảm giá nếu có, thêm ghi chú. Giao dịch được lưu ngay lập tức và hiển thị trên màn hình quản lý của chủ tiệm.</p>
+
+    <div class="flow">
+      <div class="flow-step"><div class="fs-label">Chọn dịch vụ</div></div>
+      <div class="flow-step"><div class="fs-label">Nhập thông tin khách</div></div>
+      <div class="flow-step"><div class="fs-label">Điều chỉnh giá / giảm giá</div></div>
+      <div class="flow-step"><div class="fs-label">Xác nhận & lưu</div></div>
+      <div class="flow-step"><div class="fs-label">Cập nhật báo cáo ngay</div></div>
+    </div>
+
+    <h3>📊 Dashboard & Thống kê</h3>
+    <p>Chủ tiệm theo dõi tức thời: doanh thu hôm nay, doanh thu tháng, số khách, top nhân viên và top dịch vụ. Biểu đồ trực quan thể hiện xu hướng doanh thu 30 ngày gần nhất.</p>
+
+    <h3>👩‍💼 Quản lý nhân viên</h3>
+    <ul style="padding-left:18px; color:#4b5563; font-size:12.5px; line-height:2;">
+      <li>Thêm / chỉnh sửa / vô hiệu hóa tài khoản nhân viên</li>
+      <li>Đặt lại mật khẩu, xem mật khẩu hiện tại (chủ tiệm)</li>
+      <li>Nâng cấp nhân viên lên vai trò quản lý</li>
+      <li>Chuyển nhân viên sang chi nhánh khác</li>
+    </ul>
+
+    <h3>💈 Quản lý dịch vụ & giá</h3>
+    <p>Thêm, chỉnh sửa, xóa dịch vụ và cập nhật giá tiền bất kỳ lúc nào. Có thể tạm ẩn dịch vụ mà không cần xóa.</p>
+
+    <h3>🏪 Thông tin tiệm</h3>
+    <p>Cài đặt tên tiệm, địa chỉ, số điện thoại và lịch làm việc theo từng ngày trong tuần (giờ mở cửa, đóng cửa, ngày nghỉ).</p>
+  </div>
+
+  <!-- 4. Báo cáo -->
+  <div class="section">
+    <div class="section-title"><span class="icon">📈</span> Hệ thống báo cáo & xuất file</div>
+
+    <div class="highlight">
+      <div class="hl-title">Bộ lọc thời gian linh hoạt</div>
+      <div class="pill-row">
+        <span class="pill">Tháng này</span>
+        <span class="pill">7 ngày gần nhất</span>
+        <span class="pill soft">Tùy chọn khoảng ngày</span>
+      </div>
+      <p style="font-size:11.5px; color:#5b21b6; margin-top:8px; margin-bottom:0;">Kết hợp thêm bộ lọc theo từng nhân viên cụ thể để phân tích chi tiết hơn.</p>
+    </div>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Loại báo cáo</th>
+          <th>Nội dung</th>
+          <th style="text-align:center">Excel</th>
+          <th style="text-align:center">PDF</th>
+          <th style="text-align:center">In</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><b>Giao dịch</b></td>
+          <td>Ngày, khách hàng, nhân viên, dịch vụ, số tiền</td>
+          <td style="text-align:center" class="check">✓</td>
+          <td style="text-align:center" class="check">✓</td>
+          <td style="text-align:center" class="dash">—</td>
+        </tr>
+        <tr>
+          <td><b>Báo cáo nhân viên</b></td>
+          <td>Số khách, tổng doanh thu, trung bình/khách từng người</td>
+          <td style="text-align:center" class="check">✓</td>
+          <td style="text-align:center" class="check">✓</td>
+          <td style="text-align:center" class="check">✓</td>
+        </tr>
+        <tr>
+          <td><b>Báo cáo dịch vụ</b></td>
+          <td>Số lượt sử dụng và doanh thu từng dịch vụ</td>
+          <td style="text-align:center" class="check">✓</td>
+          <td style="text-align:center" class="check">✓</td>
+          <td style="text-align:center" class="check">✓</td>
+        </tr>
+        <tr>
+          <td><b>Lịch sử cá nhân</b> <span style="font-size:10px;color:#9ca3af">(nhân viên)</span></td>
+          <td>Toàn bộ giao dịch của bản thân theo khoảng thời gian</td>
+          <td style="text-align:center" class="check">✓</td>
+          <td style="text-align:center" class="check">✓</td>
+          <td style="text-align:center" class="dash">—</td>
+        </tr>
+      </tbody>
+    </table>
+    <p style="font-size:11.5px; color:#6b7280;">Tên file xuất phản ánh đúng điều kiện lọc. Ví dụ: <i>bao-cao-nhan-vien-thang-2026-06.pdf</i> hoặc <i>giao-dich-7ngay-20260622.xlsx</i></p>
+  </div>
+
+  <!-- 5. Quản lý đa chi nhánh -->
+  <div class="section">
+    <div class="section-title"><span class="icon">🏢</span> Quản lý đa chi nhánh (Super Admin)</div>
+    <p>Hệ thống hỗ trợ quản trị viên cấp cao (Super Admin) giám sát toàn bộ hệ thống tiệm:</p>
+    <ul style="padding-left:18px; color:#4b5563; font-size:12.5px; line-height:2; margin-bottom:10px;">
+      <li>Tạo tiệm mới và tài khoản chủ tiệm</li>
+      <li>Xem dữ liệu, giao dịch và báo cáo của từng tiệm</li>
+      <li>Quản lý nhân viên, dịch vụ cho từng tiệm</li>
+      <li>Chuyển nhân viên giữa các chi nhánh</li>
+      <li>Tổng quan toàn hệ thống: doanh thu, số tiệm, số người dùng</li>
+    </ul>
+    <p>Mỗi tiệm hoạt động độc lập — dữ liệu được tách biệt hoàn toàn, chủ tiệm A không thể xem dữ liệu tiệm B.</p>
+  </div>
+
+  <!-- 6. Điểm nổi bật -->
+  <div class="section">
+    <div class="section-title"><span class="icon">🎯</span> Điểm nổi bật so với quản lý thủ công</div>
+    <table>
+      <thead>
+        <tr><th>Vấn đề thường gặp</th><th>Giải pháp HD Beauty Manager</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Ghi sổ tay, dễ mất dữ liệu</td>
+          <td>Lưu đám mây tự động, an toàn 24/7</td>
+        </tr>
+        <tr>
+          <td>Không biết nhân viên nào doanh thu cao nhất</td>
+          <td>Bảng xếp hạng nhân viên theo doanh thu, tức thời</td>
+        </tr>
+        <tr>
+          <td>Tổng kết cuối tháng mất nhiều giờ</td>
+          <td>Xuất báo cáo Excel/PDF chỉ trong vài giây</td>
+        </tr>
+        <tr>
+          <td>Không quản lý được khi vắng mặt</td>
+          <td>Xem trực tiếp trên điện thoại ở bất kỳ đâu</td>
+        </tr>
+        <tr>
+          <td>Nhân viên xem được lương/doanh thu của nhau</td>
+          <td>Mỗi nhân viên chỉ thấy dữ liệu của mình</td>
+        </tr>
+        <tr>
+          <td>Khó theo dõi dịch vụ nào được ưa chuộng</td>
+          <td>Báo cáo dịch vụ theo lượt dùng và doanh thu</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Footer -->
+  <div class="footer">
+    <div><b>HD Beauty Manager</b> — Tài liệu giới thiệu sản phẩm</div>
+    <div>Ngày: <script>document.write(new Date().toLocaleDateString('vi-VN'))</script></div>
+  </div>
+
+</div>
+</body>
+</html>

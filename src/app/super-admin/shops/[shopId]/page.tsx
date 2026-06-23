@@ -1034,7 +1034,7 @@ function ServicesTab({ shopId, services, loading }: {
       <Modal open={modalOpen} onClose={() => setModalOpen(false)} title={editTarget ? 'Chỉnh sửa dịch vụ' : 'Thêm dịch vụ'}>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <Input label="Tên dịch vụ" placeholder="VD: Nail gel, Massage, ..." error={errors.name?.message} {...register('name')} />
-          <Input label="Giá (VNĐ)" type="number" placeholder="150000" error={errors.price?.message} {...register('price')} />
+          <Input label="Giá (€)" type="number" placeholder="150" error={errors.price?.message} {...register('price')} />
           <label className="flex items-center gap-3 cursor-pointer">
             <input type="checkbox" className="h-4 w-4 rounded accent-primary-500" {...register('active')} />
             <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Hoạt động</span>

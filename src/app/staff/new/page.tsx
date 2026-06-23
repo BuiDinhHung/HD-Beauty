@@ -185,9 +185,9 @@ export default function StaffNewTransactionPage() {
         <Card>
           <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-4">Doanh thu</h3>
           <Input
-            label="Số tiền (VNĐ) *"
+            label="Số tiền (€) *"
             type="number"
-            placeholder="150000"
+            placeholder="150"
             error={errors.totalAmount?.message}
             {...register('totalAmount')}
           />

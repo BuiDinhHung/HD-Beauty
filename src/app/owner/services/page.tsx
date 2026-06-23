@@ -165,9 +165,9 @@ export default function ServicesPage() {
             {...register('name')}
           />
           <Input
-            label="Giá (VNĐ)"
+            label="Giá (€)"
             type="number"
-            placeholder="150000"
+            placeholder="150"
             error={errors.price?.message}
             {...register('price')}
           />
