@@ -35,7 +35,8 @@ export default function Header({ title, subtitle, rightAction, showThemeToggle =
           {showThemeToggle && (
             <button
               onClick={toggleTheme}
-              className="p-2 rounded-xl text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+              className="p-2 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+              title={isDark ? 'Chuyển sáng' : 'Chuyển tối'}
             >
               {isDark ? <Sun size={18} /> : <Moon size={18} />}
             </button>

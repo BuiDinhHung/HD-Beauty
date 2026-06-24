@@ -2,6 +2,7 @@ import {
   collection,
   doc,
   addDoc,
+  updateDoc,
   deleteDoc,
   query,
   where,
@@ -15,14 +16,15 @@ export async function createTransaction(
   shopId: string,
   staffId: string,
   staffName: string,
-  data: TransactionFormData
+  data: TransactionFormData,
+  date?: Date
 ): Promise<string> {
   const ref = await addDoc(collection(db, 'transactions'), {
     shopId,
     staffId,
     staffName,
     totalAmount: data.totalAmount,
-    createdAt: Timestamp.now(),
+    createdAt: date ? Timestamp.fromDate(date) : Timestamp.now(),
   });
   return ref.id;
 }
@@ -64,6 +66,17 @@ export function subscribeStaffTransactions(
     },
     (err) => { console.error('[subscribeStaffTransactions]', err); callback([]); },
   );
+}
+
+export async function updateTransaction(
+  transactionId: string,
+  data: { totalAmount: number; staffId?: string; staffName?: string; date?: Date }
+): Promise<void> {
+  const updates: Record<string, unknown> = { totalAmount: data.totalAmount };
+  if (data.staffId)   updates.staffId   = data.staffId;
+  if (data.staffName) updates.staffName = data.staffName;
+  if (data.date)      updates.createdAt = Timestamp.fromDate(data.date);
+  await updateDoc(doc(db, 'transactions', transactionId), updates);
 }
 
 export async function deleteTransaction(transactionId: string) {

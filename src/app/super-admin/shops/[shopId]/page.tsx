@@ -21,7 +21,7 @@ import { createStaffAccount, resetStaffPassword, setStaffPassword } from '@/serv
 import { updateStaff, toggleStaffActive, deleteStaff, transferStaff } from '@/services/staff.service';
 import { getAllShops } from '@/services/shop.service';
 import { createService, updateService, deleteService, toggleServiceActive } from '@/services/service.service';
-import { deleteTransaction } from '@/services/transaction.service';
+import { createTransaction, updateTransaction, deleteTransaction } from '@/services/transaction.service';
 import { decryptPassword } from '@/lib/crypto';
 import { Shop, StaffReport, Transaction, User, UserRole, Service } from '@/types';
 import { formatCurrency, exportToExcel, exportToPDF } from '@/lib/utils';
@@ -113,7 +113,7 @@ export default function ShopDetailPage({ params }: { params: Promise<{ shopId: s
       <div className="max-w-5xl mx-auto p-4 md:p-6 space-y-5">
         {tab === 0 && <OverviewTab stats={stats} chartData={chartData} transactions={transactions} txLoading={txLoading} staffCount={staff.length} svcCount={services.length} shop={shop} />}
         {tab === 1 && <StaffTab shopId={shopId} staff={staff} loading={staffLoading} />}
-        {tab === 2 && <TransactionsTab transactions={transactions} loading={txLoading} />}
+        {tab === 2 && <TransactionsTab transactions={transactions} loading={txLoading} staff={staff} shopId={shopId} />}
         {tab === 3 && <ServicesTab shopId={shopId} services={services} loading={svcLoading} />}
         {tab === 4 && <ReportsTab transactions={transactions} shopName={shop?.name ?? shopId} staff={staff} />}
       </div>
@@ -706,7 +706,7 @@ function StaffTab({ shopId, staff, loading }: {
 
 type TxFilterMode = 'all' | 'month' | 'week' | 'custom';
 
-function TransactionsTab({ transactions, loading }: { transactions: Transaction[]; loading: boolean }) {
+function TransactionsTab({ transactions, loading, staff, shopId }: { transactions: Transaction[]; loading: boolean; staff: User[]; shopId: string }) {
   const [search, setSearch]           = useState('');
   const [staffFilter, setStaffFilter] = useState('');
   const [filterMode, setFilterMode]   = useState<TxFilterMode>('all');
@@ -714,6 +714,16 @@ function TransactionsTab({ transactions, loading }: { transactions: Transaction[
   const [customTo, setCustomTo]       = useState(format(new Date(), 'yyyy-MM-dd'));
   const [deleteTx, setDeleteTx]       = useState<Transaction | null>(null);
   const [deleting, setDeleting]       = useState(false);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [addStaffId, setAddStaffId]   = useState('');
+  const [addAmount, setAddAmount]     = useState('');
+  const [addDate, setAddDate]         = useState(format(new Date(), 'yyyy-MM-dd'));
+  const [addSubmitting, setAddSubmitting] = useState(false);
+  const [editTarget, setEditTarget]   = useState<Transaction | null>(null);
+  const [editStaffId, setEditStaffId] = useState('');
+  const [editAmount, setEditAmount]   = useState('');
+  const [editDate, setEditDate]       = useState('');
+  const [editSubmitting, setEditSubmitting] = useState(false);
 
   const staffNames = useMemo(() => {
     const map = new Map<string, string>();
@@ -782,6 +792,66 @@ function TransactionsTab({ transactions, loading }: { transactions: Transaction[
     }
   };
 
+  const openEdit = (t: Transaction) => {
+    setEditTarget(t);
+    setEditDate(format(t.createdAt.toDate(), 'yyyy-MM-dd'));
+    setEditStaffId(t.staffId);
+    setEditAmount(String(t.totalAmount));
+  };
+
+  const handleEditSave = async () => {
+    if (!editTarget) return;
+    const amount = parseFloat(editAmount);
+    if (!editStaffId || isNaN(amount) || amount <= 0) {
+      toast.error('Vui lòng chọn nhân viên và nhập số tiền hợp lệ');
+      return;
+    }
+    setEditSubmitting(true);
+    try {
+      const selected = staff.find((s) => s.id === editStaffId);
+      await updateTransaction(editTarget.id, {
+        totalAmount: amount,
+        staffId: editStaffId,
+        staffName: selected?.name ?? editTarget.staffName,
+        date: new Date(`${editDate}T12:00:00`),
+      });
+      toast.success('Đã cập nhật giao dịch');
+      setEditTarget(null);
+    } catch {
+      toast.error('Không thể cập nhật giao dịch');
+    } finally {
+      setEditSubmitting(false);
+    }
+  };
+
+  const handleAdd = async () => {
+    const amount = parseFloat(addAmount);
+    if (!addStaffId || isNaN(amount) || amount <= 0) {
+      toast.error('Vui lòng chọn nhân viên và nhập số tiền hợp lệ');
+      return;
+    }
+    setAddSubmitting(true);
+    try {
+      const selected = staff.find((s) => s.id === addStaffId);
+      await createTransaction(
+        shopId,
+        addStaffId,
+        selected?.name ?? '',
+        { totalAmount: amount },
+        new Date(`${addDate}T12:00:00`)
+      );
+      toast.success('Đã thêm giao dịch');
+      setShowAddModal(false);
+      setAddStaffId('');
+      setAddAmount('');
+      setAddDate(format(new Date(), 'yyyy-MM-dd'));
+    } catch {
+      toast.error('Không thể thêm giao dịch');
+    } finally {
+      setAddSubmitting(false);
+    }
+  };
+
   const staffSuffix = staffFilter
     ? `-${(staffNames.find(([id]) => id === staffFilter)?.[1] ?? staffFilter).replace(/\s+/g, '-')}`
     : '';
@@ -814,6 +884,12 @@ function TransactionsTab({ transactions, loading }: { transactions: Transaction[
 
   return (
     <>
+      <div className="flex justify-end">
+        <Button size="sm" onClick={() => setShowAddModal(true)}>
+          <Plus size={14} /> Thêm giao dịch
+        </Button>
+      </div>
+
       <SearchBar placeholder="Tìm khách, nhân viên..." value={search} onChange={(e) => setSearch(e.target.value)} onClear={() => setSearch('')} />
 
       {/* Filter pills */}
@@ -892,7 +968,7 @@ function TransactionsTab({ transactions, loading }: { transactions: Transaction[
       ) : (
         <div className="space-y-2">
           {filtered.map((t, i) => (
-            <TransactionCard key={t.id} transaction={t} index={i} onDelete={() => setDeleteTx(t)} />
+            <TransactionCard key={t.id} transaction={t} index={i} onEdit={() => openEdit(t)} onDelete={() => setDeleteTx(t)} />
           ))}
         </div>
       )}
@@ -906,6 +982,90 @@ function TransactionsTab({ transactions, loading }: { transactions: Transaction[
         confirmLabel="Xóa"
         loading={deleting}
       />
+
+      <Modal open={!!editTarget} onClose={() => setEditTarget(null)} title="Sửa giao dịch" size="sm">
+        <div className="space-y-4">
+          <div>
+            <label className="text-xs font-medium text-gray-500 mb-1 block">Ngày *</label>
+            <input
+              type="date"
+              value={editDate}
+              max={format(new Date(), 'yyyy-MM-dd')}
+              onChange={(e) => setEditDate(e.target.value)}
+              className="w-full h-10 px-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-primary-400"
+            />
+          </div>
+          <div>
+            <label className="text-xs font-medium text-gray-500 mb-1 block">Nhân viên *</label>
+            <select
+              value={editStaffId}
+              onChange={(e) => setEditStaffId(e.target.value)}
+              className="w-full h-10 px-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-primary-400"
+            >
+              <option value="">Chọn nhân viên</option>
+              {staff.map((s) => (
+                <option key={s.id} value={s.id}>{s.name}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="text-xs font-medium text-gray-500 mb-1 block">Số tiền (€) *</label>
+            <input
+              type="number"
+              min="1"
+              placeholder="150"
+              value={editAmount}
+              onChange={(e) => setEditAmount(e.target.value)}
+              className="w-full h-10 px-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-primary-400"
+            />
+          </div>
+          <Button onClick={handleEditSave} fullWidth loading={editSubmitting}>
+            Cập nhật
+          </Button>
+        </div>
+      </Modal>
+
+      <Modal open={showAddModal} onClose={() => setShowAddModal(false)} title="Thêm giao dịch" size="sm">
+        <div className="space-y-4">
+          <div>
+            <label className="text-xs font-medium text-gray-500 mb-1 block">Ngày *</label>
+            <input
+              type="date"
+              value={addDate}
+              max={format(new Date(), 'yyyy-MM-dd')}
+              onChange={(e) => setAddDate(e.target.value)}
+              className="w-full h-10 px-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-primary-400"
+            />
+          </div>
+          <div>
+            <label className="text-xs font-medium text-gray-500 mb-1 block">Nhân viên *</label>
+            <select
+              value={addStaffId}
+              onChange={(e) => setAddStaffId(e.target.value)}
+              className="w-full h-10 px-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-primary-400"
+            >
+              <option value="">Chọn nhân viên</option>
+              {staff.map((s) => (
+                <option key={s.id} value={s.id}>{s.name}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="text-xs font-medium text-gray-500 mb-1 block">Số tiền (€) *</label>
+            <input
+              type="number"
+              min="1"
+              placeholder="150"
+              value={addAmount}
+              onChange={(e) => setAddAmount(e.target.value)}
+              className="w-full h-10 px-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-primary-400"
+            />
+          </div>
+          <Button onClick={handleAdd} fullWidth loading={addSubmitting}>
+            Lưu giao dịch
+          </Button>
+        </div>
+      </Modal>
     </>
   );
 }

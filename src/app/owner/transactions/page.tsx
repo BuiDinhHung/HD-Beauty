@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { ArrowLeftRight, Filter } from 'lucide-react';
+import { ArrowLeftRight, Filter, Plus } from 'lucide-react';
 import { startOfDay, endOfDay, startOfMonth, endOfMonth, subDays, format, parseISO } from 'date-fns';
 import { vi } from 'date-fns/locale';
 import Image from 'next/image';
@@ -9,12 +9,13 @@ import toast from 'react-hot-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRealtimeTransactions } from '@/hooks/useTransactions';
 import { useStaff } from '@/hooks/useStaff';
-import { deleteTransaction } from '@/services/transaction.service';
+import { createTransaction, updateTransaction, deleteTransaction } from '@/services/transaction.service';
 import Header from '@/components/layout/Header';
 import SearchBar from '@/components/ui/SearchBar';
 import TransactionCard from '@/components/shared/TransactionCard';
 import EmptyState from '@/components/ui/EmptyState';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
+import Modal from '@/components/ui/Modal';
 import { SkeletonList } from '@/components/ui/Loading';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
@@ -24,7 +25,7 @@ import { Transaction } from '@/types';
 type FilterMode = 'all' | 'month' | 'week' | 'custom';
 
 export default function TransactionsPage() {
-  const { user } = useAuth();
+  const { user, isOwner } = useAuth();
   const { transactions, loading } = useRealtimeTransactions(user?.shopId);
   const { staff } = useStaff(user?.shopId);
   const [search, setSearch] = useState('');
@@ -35,6 +36,16 @@ export default function TransactionsPage() {
   const [showFilters, setShowFilters] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Transaction | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [addStaffId, setAddStaffId] = useState('');
+  const [addAmount, setAddAmount] = useState('');
+  const [addDate, setAddDate] = useState(format(new Date(), 'yyyy-MM-dd'));
+  const [addSubmitting, setAddSubmitting] = useState(false);
+  const [editTarget, setEditTarget] = useState<Transaction | null>(null);
+  const [editStaffId, setEditStaffId] = useState('');
+  const [editAmount, setEditAmount] = useState('');
+  const [editDate, setEditDate] = useState('');
+  const [editSubmitting, setEditSubmitting] = useState(false);
 
   const staffNameMap = useMemo(() => {
     const map: Record<string, string> = {};
@@ -114,6 +125,67 @@ export default function TransactionsPage() {
     setFilterMode('all');
   };
 
+  const openEdit = (t: Transaction) => {
+    setEditTarget(t);
+    setEditDate(format(t.createdAt.toDate(), 'yyyy-MM-dd'));
+    setEditStaffId(t.staffId);
+    setEditAmount(String(t.totalAmount));
+  };
+
+  const handleEditSave = async () => {
+    if (!editTarget) return;
+    const amount = parseFloat(editAmount);
+    if (!editStaffId || isNaN(amount) || amount <= 0) {
+      toast.error('Vui lòng chọn nhân viên và nhập số tiền hợp lệ');
+      return;
+    }
+    setEditSubmitting(true);
+    try {
+      const selected = staff.find((s) => s.id === editStaffId);
+      await updateTransaction(editTarget.id, {
+        totalAmount: amount,
+        staffId: editStaffId,
+        staffName: selected?.name ?? editTarget.staffName,
+        date: new Date(`${editDate}T12:00:00`),
+      });
+      toast.success('Đã cập nhật giao dịch');
+      setEditTarget(null);
+    } catch {
+      toast.error('Không thể cập nhật giao dịch');
+    } finally {
+      setEditSubmitting(false);
+    }
+  };
+
+  const handleAdd = async () => {
+    const amount = parseFloat(addAmount);
+    if (!addStaffId || isNaN(amount) || amount <= 0) {
+      toast.error('Vui lòng chọn nhân viên và nhập số tiền hợp lệ');
+      return;
+    }
+    if (!user?.shopId) return;
+    setAddSubmitting(true);
+    try {
+      const selected = staff.find((s) => s.id === addStaffId);
+      await createTransaction(
+        user.shopId,
+        addStaffId,
+        selected?.name ?? '',
+        { totalAmount: amount },
+        new Date(`${addDate}T12:00:00`)
+      );
+      toast.success('Đã thêm giao dịch');
+      setShowAddModal(false);
+      setAddStaffId('');
+      setAddAmount('');
+      setAddDate(format(new Date(), 'yyyy-MM-dd'));
+    } catch {
+      toast.error('Không thể thêm giao dịch');
+    } finally {
+      setAddSubmitting(false);
+    }
+  };
+
   const staffSuffix = staffFilter
     ? `-${(staffNameMap[staffFilter] ?? staffFilter).replace(/\s+/g, '-')}`
     : '';
@@ -152,21 +224,30 @@ export default function TransactionsPage() {
         title="Giao dịch"
         subtitle={`${filtered.length} giao dịch`}
         rightAction={
-          <button
-            onClick={() => setShowFilters(!showFilters)}
-            className={`relative p-2 rounded-xl transition-colors ${
-              showFilters
-                ? 'bg-primary-100 text-primary-600 dark:bg-primary-900/30'
-                : 'text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
-            }`}
-          >
-            <Filter size={18} />
-            {activeFilterCount > 0 && (
-              <span className="absolute -top-0.5 -right-0.5 h-4 w-4 rounded-full bg-primary-600 text-white text-[10px] flex items-center justify-center font-bold">
-                {activeFilterCount}
-              </span>
-            )}
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowAddModal(true)}
+              className="p-2 rounded-xl bg-gradient-primary text-white shadow-sm hover:opacity-90 active:scale-95 transition-all"
+              title="Thêm giao dịch"
+            >
+              <Plus size={18} />
+            </button>
+            <button
+              onClick={() => setShowFilters(!showFilters)}
+              className={`relative p-2 rounded-xl border transition-colors ${
+                showFilters
+                  ? 'bg-primary-600 text-white border-primary-600 shadow-sm'
+                  : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700'
+              }`}
+            >
+              <Filter size={18} />
+              {activeFilterCount > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 h-4 w-4 rounded-full bg-white text-primary-600 text-[10px] flex items-center justify-center font-bold border border-primary-200">
+                  {activeFilterCount}
+                </span>
+              )}
+            </button>
+          </div>
         }
       />
 
@@ -286,7 +367,8 @@ export default function TransactionsPage() {
                 key={t.id}
                 transaction={t}
                 index={i}
-                onDelete={() => setDeleteTarget(t)}
+                onEdit={() => openEdit(t)}
+                onDelete={isOwner ? () => setDeleteTarget(t) : undefined}
               />
             ))}
           </div>
@@ -302,6 +384,90 @@ export default function TransactionsPage() {
         confirmLabel="Xóa"
         loading={deleting}
       />
+
+      <Modal open={!!editTarget} onClose={() => setEditTarget(null)} title="Sửa giao dịch" size="sm">
+        <div className="space-y-4">
+          <div>
+            <label className="text-xs font-medium text-gray-500 mb-1 block">Ngày *</label>
+            <input
+              type="date"
+              value={editDate}
+              max={format(new Date(), 'yyyy-MM-dd')}
+              onChange={(e) => setEditDate(e.target.value)}
+              className="w-full h-10 px-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-primary-400"
+            />
+          </div>
+          <div>
+            <label className="text-xs font-medium text-gray-500 mb-1 block">Nhân viên *</label>
+            <select
+              value={editStaffId}
+              onChange={(e) => setEditStaffId(e.target.value)}
+              className="w-full h-10 px-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-primary-400"
+            >
+              <option value="">Chọn nhân viên</option>
+              {staff.map((s) => (
+                <option key={s.id} value={s.id}>{s.name}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="text-xs font-medium text-gray-500 mb-1 block">Số tiền (€) *</label>
+            <input
+              type="number"
+              min="1"
+              placeholder="150"
+              value={editAmount}
+              onChange={(e) => setEditAmount(e.target.value)}
+              className="w-full h-10 px-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-primary-400"
+            />
+          </div>
+          <Button onClick={handleEditSave} fullWidth loading={editSubmitting}>
+            Cập nhật
+          </Button>
+        </div>
+      </Modal>
+
+      <Modal open={showAddModal} onClose={() => setShowAddModal(false)} title="Thêm giao dịch" size="sm">
+        <div className="space-y-4">
+          <div>
+            <label className="text-xs font-medium text-gray-500 mb-1 block">Ngày *</label>
+            <input
+              type="date"
+              value={addDate}
+              max={format(new Date(), 'yyyy-MM-dd')}
+              onChange={(e) => setAddDate(e.target.value)}
+              className="w-full h-10 px-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-primary-400"
+            />
+          </div>
+          <div>
+            <label className="text-xs font-medium text-gray-500 mb-1 block">Nhân viên *</label>
+            <select
+              value={addStaffId}
+              onChange={(e) => setAddStaffId(e.target.value)}
+              className="w-full h-10 px-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-primary-400"
+            >
+              <option value="">Chọn nhân viên</option>
+              {staff.map((s) => (
+                <option key={s.id} value={s.id}>{s.name}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="text-xs font-medium text-gray-500 mb-1 block">Số tiền (€) *</label>
+            <input
+              type="number"
+              min="1"
+              placeholder="150"
+              value={addAmount}
+              onChange={(e) => setAddAmount(e.target.value)}
+              className="w-full h-10 px-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-primary-400"
+            />
+          </div>
+          <Button onClick={handleAdd} fullWidth loading={addSubmitting}>
+            Lưu giao dịch
+          </Button>
+        </div>
+      </Modal>
     </div>
   );
 }

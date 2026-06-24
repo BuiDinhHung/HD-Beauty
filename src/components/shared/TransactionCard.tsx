@@ -9,9 +9,10 @@ interface TransactionCardProps {
   transaction: Transaction;
   index?: number;
   onDelete?: () => void;
+  onEdit?: () => void;
 }
 
-export default function TransactionCard({ transaction, index = 0, onDelete }: TransactionCardProps) {
+export default function TransactionCard({ transaction, index = 0, onDelete, onEdit }: TransactionCardProps) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 16 }}
@@ -38,14 +39,24 @@ export default function TransactionCard({ transaction, index = 0, onDelete }: Tr
           <Clock size={11} />
           {formatDateTime(transaction.createdAt.toDate())}
         </div>
-        {onDelete && (
-          <button
-            onClick={onDelete}
-            className="text-xs text-red-400 hover:text-red-500 transition-colors"
-          >
-            Xóa
-          </button>
-        )}
+        <div className="flex items-center gap-3">
+          {onEdit && (
+            <button
+              onClick={onEdit}
+              className="text-xs text-primary-500 hover:text-primary-600 dark:text-primary-400 dark:hover:text-primary-300 transition-colors"
+            >
+              Sửa
+            </button>
+          )}
+          {onDelete && (
+            <button
+              onClick={onDelete}
+              className="text-xs text-red-400 hover:text-red-500 transition-colors"
+            >
+              Xóa
+            </button>
+          )}
+        </div>
       </div>
     </motion.div>
   );
