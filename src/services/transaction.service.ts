@@ -21,14 +21,7 @@ export async function createTransaction(
     shopId,
     staffId,
     staffName,
-    customerName: data.customerName,
-    customerPhone: data.customerPhone || '',
-    serviceIds: data.serviceIds,
-    serviceNames: data.serviceNames ?? [],
-    suggestedAmount: data.suggestedAmount,
-    discount: data.discount,
     totalAmount: data.totalAmount,
-    note: data.note || '',
     createdAt: Timestamp.now(),
   });
   return ref.id;

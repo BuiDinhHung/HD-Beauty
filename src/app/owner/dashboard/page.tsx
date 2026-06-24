@@ -17,7 +17,6 @@ import StatCard from '@/components/shared/StatCard';
 import Card from '@/components/ui/Card';
 import RevenueChart from '@/components/charts/RevenueChart';
 import StaffBarChart from '@/components/charts/StaffBarChart';
-import ServicePieChart from '@/components/charts/ServicePieChart';
 import { SkeletonCard } from '@/components/ui/Loading';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { format } from 'date-fns';
@@ -148,39 +147,6 @@ export default function OwnerDashboard() {
           </motion.div>
         )}
 
-        {/* Top Services */}
-        {stats.topServices.length > 0 && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3 }}
-          >
-            <Card>
-              <h3 className="font-bold text-gray-900 dark:text-gray-100 mb-4">
-                Dịch vụ phổ biến
-              </h3>
-              <div className="space-y-3 mb-4">
-                {stats.topServices.map((s, i) => (
-                  <div key={s.serviceId} className="flex items-center gap-3">
-                    <div
-                      className="h-2 w-2 rounded-full flex-shrink-0"
-                      style={{
-                        background: ['#A78BFA', '#D8B4FE', '#A7F3D0', '#FBC8D4', '#93C5FD'][i],
-                      }}
-                    />
-                    <p className="flex-1 text-sm text-gray-700 dark:text-gray-300 truncate">
-                      {s.serviceName}
-                    </p>
-                    <span className="text-xs text-gray-400 flex-shrink-0">
-                      {s.usageCount} lượt
-                    </span>
-                  </div>
-                ))}
-              </div>
-              <ServicePieChart data={stats.topServices} />
-            </Card>
-          </motion.div>
-        )}
       </div>
     </div>
   );

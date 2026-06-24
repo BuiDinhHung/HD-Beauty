@@ -78,9 +78,7 @@ export default function TransactionsPage() {
     return transactions.filter((t) => {
       const matchSearch =
         !search ||
-        t.customerName.toLowerCase().includes(search.toLowerCase()) ||
-        t.staffName.toLowerCase().includes(search.toLowerCase()) ||
-        t.serviceNames.some((s) => s.toLowerCase().includes(search.toLowerCase()));
+        t.staffName.toLowerCase().includes(search.toLowerCase());
 
       const matchStaff = !staffFilter || t.staffId === staffFilter;
 
@@ -126,10 +124,7 @@ export default function TransactionsPage() {
     exportToExcel(
       filtered.map((t) => ({
         'Ngày': format(t.createdAt.toDate(), 'dd/MM/yyyy HH:mm'),
-        'Khách hàng': t.customerName,
-        'SĐT': t.customerPhone,
         'Nhân viên': t.staffName,
-        'Dịch vụ': t.serviceNames.join(', '),
         'Số tiền (€)': t.totalAmount,
       })),
       exportFilename
@@ -139,13 +134,10 @@ export default function TransactionsPage() {
   const handleExportPDF = () => {
     exportToPDF(
       exportTitle,
-      ['Ngày', 'Khách hàng', 'SĐT', 'Nhân viên', 'Dịch vụ', 'Số tiền'],
+      ['Ngày', 'Nhân viên', 'Số tiền'],
       filtered.map((t) => [
         format(t.createdAt.toDate(), 'dd/MM/yyyy'),
-        t.customerName,
-        t.customerPhone,
         t.staffName,
-        t.serviceNames.join(', '),
         formatCurrency(t.totalAmount),
       ]),
       exportFilename
@@ -180,7 +172,7 @@ export default function TransactionsPage() {
 
       <div className="p-4 md:p-6 space-y-4 max-w-5xl">
         <SearchBar
-          placeholder="Tìm khách, nhân viên, dịch vụ..."
+          placeholder="Tìm theo nhân viên..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           onClear={() => setSearch('')}

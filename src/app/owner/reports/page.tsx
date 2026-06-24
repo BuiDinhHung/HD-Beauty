@@ -11,7 +11,7 @@ import Header from '@/components/layout/Header';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import { formatCurrency, exportToExcel, exportToPDF, printReport } from '@/lib/utils';
-import { StaffReport, ServiceReport } from '@/types';
+import { StaffReport } from '@/types';
 
 type FilterMode = 'month' | 'week' | 'custom';
 
@@ -24,7 +24,6 @@ export default function ReportsPage() {
   const [customFrom, setCustomFrom] = useState(format(startOfMonth(new Date()), 'yyyy-MM-dd'));
   const [customTo, setCustomTo] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [selectedStaffId, setSelectedStaffId] = useState<string>('all');
-  const [activeTab, setActiveTab] = useState<'staff' | 'service'>('staff');
 
   const staffNameMap = useMemo(() => {
     const map: Record<string, string> = {};
@@ -95,115 +94,54 @@ export default function ReportsPage() {
       .sort((a, b) => b.totalRevenue - a.totalRevenue);
   }, [filteredTransactions, staffNameMap]);
 
-  const serviceReports = useMemo((): ServiceReport[] => {
-    const map: Record<string, ServiceReport> = {};
-    filteredTransactions.forEach((t) => {
-      t.serviceIds.forEach((sid, idx) => {
-        if (!map[sid]) {
-          map[sid] = {
-            serviceId: sid,
-            serviceName: t.serviceNames[idx] || sid,
-            usageCount: 0,
-            totalRevenue: 0,
-          };
-        }
-        map[sid].usageCount += 1;
-        map[sid].totalRevenue += t.totalAmount / t.serviceIds.length;
-      });
-    });
-    return Object.values(map).sort((a, b) => b.usageCount - a.usageCount);
-  }, [filteredTransactions]);
-
   const totalRevenue = staffReports.reduce((s, r) => s + r.totalRevenue, 0);
 
-  const reportTitle = (tab: 'staff' | 'service') => {
+  const reportTitle = () => {
     const staffLabel =
       selectedStaffId !== 'all' ? ` · ${staffNameMap[selectedStaffId] ?? ''}` : '';
-    return tab === 'staff'
-      ? `Báo cáo nhân viên – ${rangeLabel}${staffLabel}`
-      : `Báo cáo dịch vụ – ${rangeLabel}${staffLabel}`;
+    return `Báo cáo nhân viên – ${rangeLabel}${staffLabel}`;
   };
 
-  const filenameFor = (tab: 'staff' | 'service') =>
-    tab === 'staff'
-      ? `bao-cao-nhan-vien-${rangeFilename}${staffSuffix}`
-      : `bao-cao-dich-vu-${rangeFilename}${staffSuffix}`;
+  const exportFilename = `bao-cao-nhan-vien-${rangeFilename}${staffSuffix}`;
 
   const handleExportExcel = () => {
-    if (activeTab === 'staff') {
-      exportToExcel(
-        staffReports.map((r) => ({
-          'Nhân viên': r.staffName,
-          'Số khách': r.customerCount,
-          'Doanh thu (€)': r.totalRevenue,
-          'TB/khách (€)': Math.round(r.avgRevenue),
-        })),
-        filenameFor('staff')
-      );
-    } else {
-      exportToExcel(
-        serviceReports.map((r) => ({
-          'Dịch vụ': r.serviceName,
-          'Số lượt': r.usageCount,
-          'Doanh thu (€)': Math.round(r.totalRevenue),
-        })),
-        filenameFor('service')
-      );
-    }
+    exportToExcel(
+      staffReports.map((r) => ({
+        'Nhân viên': r.staffName,
+        'Số GD': r.customerCount,
+        'Doanh thu (€)': r.totalRevenue,
+        'TB/GD (€)': Math.round(r.avgRevenue),
+      })),
+      exportFilename
+    );
   };
 
   const handleExportPDF = () => {
-    if (activeTab === 'staff') {
-      exportToPDF(
-        reportTitle('staff'),
-        ['Nhân viên', 'Số khách', 'Doanh thu', 'TB/khách'],
-        staffReports.map((r) => [
-          r.staffName,
-          r.customerCount,
-          formatCurrency(r.totalRevenue),
-          formatCurrency(r.avgRevenue),
-        ]),
-        filenameFor('staff')
-      );
-    } else {
-      exportToPDF(
-        reportTitle('service'),
-        ['Dịch vụ', 'Số lượt', 'Doanh thu'],
-        serviceReports.map((r) => [
-          r.serviceName,
-          r.usageCount,
-          formatCurrency(r.totalRevenue),
-        ]),
-        filenameFor('service')
-      );
-    }
+    exportToPDF(
+      reportTitle(),
+      ['Nhân viên', 'Số GD', 'Doanh thu', 'TB/GD'],
+      staffReports.map((r) => [
+        r.staffName,
+        r.customerCount,
+        formatCurrency(r.totalRevenue),
+        formatCurrency(r.avgRevenue),
+      ]),
+      exportFilename
+    );
   };
 
   const handlePrint = () => {
-    if (activeTab === 'staff') {
-      printReport(
-        reportTitle('staff'),
-        ['Nhân viên', 'Số khách', 'Doanh thu', 'TB/khách'],
-        staffReports.map((r) => [
-          r.staffName,
-          r.customerCount,
-          formatCurrency(r.totalRevenue),
-          formatCurrency(r.avgRevenue),
-        ]),
-        filenameFor('staff')
-      );
-    } else {
-      printReport(
-        reportTitle('service'),
-        ['Dịch vụ', 'Số lượt', 'Doanh thu'],
-        serviceReports.map((r) => [
-          r.serviceName,
-          r.usageCount,
-          formatCurrency(r.totalRevenue),
-        ]),
-        filenameFor('service')
-      );
-    }
+    printReport(
+      reportTitle(),
+      ['Nhân viên', 'Số GD', 'Doanh thu', 'TB/GD'],
+      staffReports.map((r) => [
+        r.staffName,
+        r.customerCount,
+        formatCurrency(r.totalRevenue),
+        formatCurrency(r.avgRevenue),
+      ]),
+      exportFilename
+    );
   };
 
   return (
@@ -309,78 +247,35 @@ export default function ReportsPage() {
           </Button>
         </div>
 
-        {/* Tabs */}
-        <div className="flex rounded-2xl bg-gray-100 dark:bg-gray-800 p-1">
-          {(['staff', 'service'] as const).map((tab) => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={`flex-1 py-2 text-sm font-medium rounded-xl transition-all ${
-                activeTab === tab
-                  ? 'bg-white dark:bg-gray-900 text-primary-600 dark:text-primary-400 shadow-sm'
-                  : 'text-gray-500'
-              }`}
-            >
-              {tab === 'staff' ? 'Nhân viên' : 'Dịch vụ'}
-            </button>
-          ))}
-        </div>
-
         {/* Staff Report */}
-        {activeTab === 'staff' && (
-          <Card>
-            {staffReports.length === 0 ? (
-              <p className="text-center text-gray-400 py-8">Không có dữ liệu</p>
-            ) : (
-              <div className="space-y-4">
-                {staffReports.map((r, i) => (
-                  <div key={r.staffId}>
-                    <div className="flex items-center gap-3 mb-2">
-                      <div className="h-8 w-8 rounded-full bg-gradient-primary flex items-center justify-center text-white text-sm font-bold flex-shrink-0">
-                        {i + 1}
-                      </div>
-                      <div className="flex-1">
-                        <p className="font-semibold text-sm text-gray-900 dark:text-gray-100">{r.staffName}</p>
-                        <p className="text-xs text-gray-400">{r.customerCount} khách · TB: {formatCurrency(r.avgRevenue)}</p>
-                      </div>
-                      <p className="font-bold text-primary-600 dark:text-primary-400 text-sm">{formatCurrency(r.totalRevenue)}</p>
+        <Card>
+          {staffReports.length === 0 ? (
+            <p className="text-center text-gray-400 py-8">Không có dữ liệu</p>
+          ) : (
+            <div className="space-y-4">
+              {staffReports.map((r, i) => (
+                <div key={r.staffId}>
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className="h-8 w-8 rounded-full bg-gradient-primary flex items-center justify-center text-white text-sm font-bold flex-shrink-0">
+                      {i + 1}
                     </div>
-                    <div className="h-1.5 rounded-full bg-gray-100 dark:bg-gray-800 overflow-hidden ml-11">
-                      <div
-                        className="h-full rounded-full bg-gradient-primary transition-all"
-                        style={{ width: `${totalRevenue > 0 ? (r.totalRevenue / totalRevenue) * 100 : 0}%` }}
-                      />
+                    <div className="flex-1">
+                      <p className="font-semibold text-sm text-gray-900 dark:text-gray-100">{r.staffName}</p>
+                      <p className="text-xs text-gray-400">{r.customerCount} GD · TB: {formatCurrency(r.avgRevenue)}</p>
                     </div>
+                    <p className="font-bold text-primary-600 dark:text-primary-400 text-sm">{formatCurrency(r.totalRevenue)}</p>
                   </div>
-                ))}
-              </div>
-            )}
-          </Card>
-        )}
-
-        {/* Service Report */}
-        {activeTab === 'service' && (
-          <Card>
-            {serviceReports.length === 0 ? (
-              <p className="text-center text-gray-400 py-8">Không có dữ liệu</p>
-            ) : (
-              <div className="divide-y divide-gray-50 dark:divide-gray-800">
-                {serviceReports.map((r, i) => (
-                  <div key={r.serviceId} className="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
-                    <span className="text-sm text-gray-400 w-5 text-center">{i + 1}</span>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium text-sm text-gray-900 dark:text-gray-100 truncate">{r.serviceName}</p>
-                      <p className="text-xs text-gray-400">{r.usageCount} lượt sử dụng</p>
-                    </div>
-                    <p className="font-semibold text-sm text-primary-600 dark:text-primary-400 flex-shrink-0">
-                      {formatCurrency(r.totalRevenue)}
-                    </p>
+                  <div className="h-1.5 rounded-full bg-gray-100 dark:bg-gray-800 overflow-hidden ml-11">
+                    <div
+                      className="h-full rounded-full bg-gradient-primary transition-all"
+                      style={{ width: `${totalRevenue > 0 ? (r.totalRevenue / totalRevenue) * 100 : 0}%` }}
+                    />
                   </div>
-                ))}
-              </div>
-            )}
-          </Card>
-        )}
+                </div>
+              ))}
+            </div>
+          )}
+        </Card>
       </div>
     </div>
   );

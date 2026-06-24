@@ -99,7 +99,6 @@ export function useDashboardStats(transactions: Transaction[]) {
     const monthRevenue = monthTx.reduce((s, t) => s + t.totalAmount, 0);
 
     const staffRevenue: Record<string, { name: string; revenue: number; count: number }> = {};
-    const serviceUsage: Record<string, { name: string; count: number; revenue: number }> = {};
 
     monthTx.forEach((t) => {
       if (!staffRevenue[t.staffId]) {
@@ -107,14 +106,6 @@ export function useDashboardStats(transactions: Transaction[]) {
       }
       staffRevenue[t.staffId].revenue += t.totalAmount;
       staffRevenue[t.staffId].count += 1;
-
-      t.serviceIds.forEach((sid, idx) => {
-        if (!serviceUsage[sid]) {
-          serviceUsage[sid] = { name: t.serviceNames[idx] || sid, count: 0, revenue: 0 };
-        }
-        serviceUsage[sid].count += 1;
-        serviceUsage[sid].revenue += t.totalAmount / t.serviceIds.length;
-      });
     });
 
     const topStaff = Object.entries(staffRevenue)
@@ -128,23 +119,12 @@ export function useDashboardStats(transactions: Transaction[]) {
         avgRevenue: v.count > 0 ? v.revenue / v.count : 0,
       }));
 
-    const topServices = Object.entries(serviceUsage)
-      .sort((a, b) => b[1].count - a[1].count)
-      .slice(0, 5)
-      .map(([id, v]) => ({
-        serviceId: id,
-        serviceName: v.name,
-        usageCount: v.count,
-        totalRevenue: v.revenue,
-      }));
-
     return {
       todayRevenue,
       monthRevenue,
       todayCustomers: todayTx.length,
       monthCustomers: monthTx.length,
       topStaff,
-      topServices,
     };
   }, [transactions]);
 }

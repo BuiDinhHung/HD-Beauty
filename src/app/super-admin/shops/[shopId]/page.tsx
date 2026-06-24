@@ -23,7 +23,7 @@ import { getAllShops } from '@/services/shop.service';
 import { createService, updateService, deleteService, toggleServiceActive } from '@/services/service.service';
 import { deleteTransaction } from '@/services/transaction.service';
 import { decryptPassword } from '@/lib/crypto';
-import { Shop, StaffReport, ServiceReport, Transaction, User, UserRole, Service } from '@/types';
+import { Shop, StaffReport, Transaction, User, UserRole, Service } from '@/types';
 import { formatCurrency, exportToExcel, exportToPDF } from '@/lib/utils';
 import Image from 'next/image';
 import { format, startOfMonth, endOfMonth, subDays, startOfDay, endOfDay, parseISO } from 'date-fns';
@@ -755,7 +755,7 @@ function TransactionsTab({ transactions, loading }: { transactions: Transaction[
 
   const filtered = useMemo(() => {
     return transactions.filter((t) => {
-      const matchSearch = !search || t.customerName.toLowerCase().includes(search.toLowerCase()) || t.staffName.toLowerCase().includes(search.toLowerCase());
+      const matchSearch = !search || t.staffName.toLowerCase().includes(search.toLowerCase());
       const matchStaff  = !staffFilter || t.staffId === staffFilter;
       let matchDate = true;
       if (dateFrom && dateTo) {
@@ -792,9 +792,7 @@ function TransactionsTab({ transactions, loading }: { transactions: Transaction[
     exportToExcel(
       filtered.map((t) => ({
         'Ngày': format(t.createdAt.toDate(), 'dd/MM/yyyy HH:mm'),
-        'Khách hàng': t.customerName,
         'Nhân viên': t.staffName,
-        'Dịch vụ': t.serviceNames.join(', '),
         'Số tiền (€)': t.totalAmount,
       })),
       exportFilename
@@ -804,12 +802,10 @@ function TransactionsTab({ transactions, loading }: { transactions: Transaction[
   const handleExportPDF = () => {
     exportToPDF(
       exportTitle,
-      ['Ngày', 'Khách hàng', 'Nhân viên', 'Dịch vụ', 'Số tiền'],
+      ['Ngày', 'Nhân viên', 'Số tiền'],
       filtered.map((t) => [
         format(t.createdAt.toDate(), 'dd/MM/yyyy'),
-        t.customerName,
         t.staffName,
-        t.serviceNames.join(', '),
         formatCurrency(t.totalAmount),
       ]),
       exportFilename
@@ -906,7 +902,7 @@ function TransactionsTab({ transactions, loading }: { transactions: Transaction[
         onClose={() => setDeleteTx(null)}
         onConfirm={handleDelete}
         title="Xóa giao dịch"
-        description={`Xóa giao dịch của khách "${deleteTx?.customerName}"? Hành động này không thể hoàn tác.`}
+        description="Bạn có chắc muốn xóa giao dịch này không? Hành động này không thể hoàn tác."
         confirmLabel="Xóa"
         loading={deleting}
       />
@@ -1068,7 +1064,6 @@ function ReportsTab({ transactions, shopName, staff }: { transactions: Transacti
   const [customFrom, setCustomFrom]       = useState(format(startOfMonth(new Date()), 'yyyy-MM-dd'));
   const [customTo, setCustomTo]           = useState(format(new Date(), 'yyyy-MM-dd'));
   const [selectedStaffId, setSelectedStaffId] = useState<string>('all');
-  const [reportTab, setReportTab]         = useState<'staff' | 'service'>('staff');
 
   const staffNameMap = useMemo(() => {
     const map: Record<string, string> = {};
@@ -1126,88 +1121,42 @@ function ReportsTab({ transactions, shopName, staff }: { transactions: Transacti
     return Object.values(map).map((r) => ({ ...r, avgRevenue: r.customerCount > 0 ? r.totalRevenue / r.customerCount : 0 })).sort((a, b) => b.totalRevenue - a.totalRevenue);
   }, [filteredTx, staffNameMap]);
 
-  const serviceReports = useMemo((): ServiceReport[] => {
-    const map: Record<string, ServiceReport> = {};
-    filteredTx.forEach((t) => {
-      t.serviceIds.forEach((sid, idx) => {
-        if (!map[sid]) map[sid] = { serviceId: sid, serviceName: t.serviceNames[idx] || sid, usageCount: 0, totalRevenue: 0 };
-        map[sid].usageCount  += 1;
-        map[sid].totalRevenue += t.totalAmount / t.serviceIds.length;
-      });
-    });
-    return Object.values(map).sort((a, b) => b.usageCount - a.usageCount);
-  }, [filteredTx]);
-
   const totalRevenue = filteredTx.reduce((s, t) => s + t.totalAmount, 0);
 
-  const reportTitle = (tab: 'staff' | 'service') => {
+  const reportTitle = () => {
     const staffLabel = selectedStaffId !== 'all' ? ` · ${staffNameMap[selectedStaffId] ?? ''}` : '';
-    return tab === 'staff'
-      ? `Báo cáo nhân viên – ${shopName} – ${rangeLabel}${staffLabel}`
-      : `Báo cáo dịch vụ – ${shopName} – ${rangeLabel}${staffLabel}`;
+    return `Báo cáo nhân viên – ${shopName} – ${rangeLabel}${staffLabel}`;
   };
-  const filenameFor = (tab: 'staff' | 'service') =>
-    tab === 'staff'
-      ? `${shopName}-bao-cao-nhan-vien-${rangeFilename}${staffSuffix}`
-      : `${shopName}-bao-cao-dich-vu-${rangeFilename}${staffSuffix}`;
+  const rptFilename = `${shopName}-bao-cao-nhan-vien-${rangeFilename}${staffSuffix}`;
 
   const handleExportExcel = () => {
-    if (reportTab === 'staff') {
-      exportToExcel(
-        staffReports.map((r) => ({
-          'Nhân viên': r.staffName,
-          'Số khách': r.customerCount,
-          'Doanh thu (€)': r.totalRevenue,
-          'TB/khách (€)': Math.round(r.avgRevenue),
-        })),
-        filenameFor('staff')
-      );
-    } else {
-      exportToExcel(
-        serviceReports.map((r) => ({
-          'Dịch vụ': r.serviceName,
-          'Số lượt': r.usageCount,
-          'Doanh thu (€)': Math.round(r.totalRevenue),
-        })),
-        filenameFor('service')
-      );
-    }
+    exportToExcel(
+      staffReports.map((r) => ({
+        'Nhân viên': r.staffName,
+        'Số GD': r.customerCount,
+        'Doanh thu (€)': r.totalRevenue,
+        'TB/GD (€)': Math.round(r.avgRevenue),
+      })),
+      rptFilename
+    );
   };
 
   const handleExportPDF = () => {
-    if (reportTab === 'staff') {
-      exportToPDF(
-        reportTitle('staff'),
-        ['Nhân viên', 'Số khách', 'Doanh thu', 'TB/khách'],
-        staffReports.map((r) => [r.staffName, r.customerCount, formatCurrency(r.totalRevenue), formatCurrency(r.avgRevenue)]),
-        filenameFor('staff')
-      );
-    } else {
-      exportToPDF(
-        reportTitle('service'),
-        ['Dịch vụ', 'Số lượt', 'Doanh thu'],
-        serviceReports.map((r) => [r.serviceName, r.usageCount, formatCurrency(r.totalRevenue)]),
-        filenameFor('service')
-      );
-    }
+    exportToPDF(
+      reportTitle(),
+      ['Nhân viên', 'Số GD', 'Doanh thu', 'TB/GD'],
+      staffReports.map((r) => [r.staffName, r.customerCount, formatCurrency(r.totalRevenue), formatCurrency(r.avgRevenue)]),
+      rptFilename
+    );
   };
 
   const handlePrint = () => {
-    if (reportTab === 'staff') {
-      exportToPDF(
-        reportTitle('staff'),
-        ['Nhân viên', 'Số khách', 'Doanh thu', 'TB/khách'],
-        staffReports.map((r) => [r.staffName, r.customerCount, formatCurrency(r.totalRevenue), formatCurrency(r.avgRevenue)]),
-        filenameFor('staff')
-      );
-    } else {
-      exportToPDF(
-        reportTitle('service'),
-        ['Dịch vụ', 'Số lượt', 'Doanh thu'],
-        serviceReports.map((r) => [r.serviceName, r.usageCount, formatCurrency(r.totalRevenue)]),
-        filenameFor('service')
-      );
-    }
+    exportToPDF(
+      reportTitle(),
+      ['Nhân viên', 'Số GD', 'Doanh thu', 'TB/GD'],
+      staffReports.map((r) => [r.staffName, r.customerCount, formatCurrency(r.totalRevenue), formatCurrency(r.avgRevenue)]),
+      rptFilename
+    );
   };
 
   return (
@@ -1291,68 +1240,29 @@ function ReportsTab({ transactions, shopName, staff }: { transactions: Transacti
         </Button>
       </div>
 
-      <div className="flex rounded-2xl bg-gray-100 dark:bg-gray-800 p-1">
-        {(['staff', 'service'] as const).map((t) => (
-          <button
-            key={t}
-            onClick={() => setReportTab(t)}
-            className={`flex-1 py-2 text-sm font-medium rounded-xl transition-all ${
-              reportTab === t
-                ? 'bg-white dark:bg-gray-900 text-primary-600 dark:text-primary-400 shadow-sm'
-                : 'text-gray-500'
-            }`}
-          >
-            {t === 'staff' ? 'Nhân viên' : 'Dịch vụ'}
-          </button>
-        ))}
-      </div>
-
-      {reportTab === 'staff' && (
-        <Card>
-          {staffReports.length === 0 ? (
-            <p className="text-center text-gray-400 py-8">Không có dữ liệu</p>
-          ) : (
-            <div className="space-y-4">
-              {staffReports.map((r, i) => (
-                <div key={r.staffId}>
-                  <div className="flex items-center gap-3 mb-2">
-                    <div className="h-8 w-8 rounded-full bg-gradient-primary flex items-center justify-center text-white text-sm font-bold flex-shrink-0">{i + 1}</div>
-                    <div className="flex-1">
-                      <p className="font-semibold text-sm text-gray-900 dark:text-gray-100">{r.staffName}</p>
-                      <p className="text-xs text-gray-400">{r.customerCount} khách · TB: {formatCurrency(r.avgRevenue)}</p>
-                    </div>
-                    <p className="font-bold text-primary-600 dark:text-primary-400 text-sm">{formatCurrency(r.totalRevenue)}</p>
+      <Card>
+        {staffReports.length === 0 ? (
+          <p className="text-center text-gray-400 py-8">Không có dữ liệu</p>
+        ) : (
+          <div className="space-y-4">
+            {staffReports.map((r, i) => (
+              <div key={r.staffId}>
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="h-8 w-8 rounded-full bg-gradient-primary flex items-center justify-center text-white text-sm font-bold flex-shrink-0">{i + 1}</div>
+                  <div className="flex-1">
+                    <p className="font-semibold text-sm text-gray-900 dark:text-gray-100">{r.staffName}</p>
+                    <p className="text-xs text-gray-400">{r.customerCount} GD · TB: {formatCurrency(r.avgRevenue)}</p>
                   </div>
-                  <div className="h-1.5 rounded-full bg-gray-100 dark:bg-gray-800 overflow-hidden ml-11">
-                    <div className="h-full rounded-full bg-gradient-primary" style={{ width: `${totalRevenue > 0 ? (r.totalRevenue / totalRevenue) * 100 : 0}%` }} />
-                  </div>
+                  <p className="font-bold text-primary-600 dark:text-primary-400 text-sm">{formatCurrency(r.totalRevenue)}</p>
                 </div>
-              ))}
-            </div>
-          )}
-        </Card>
-      )}
-
-      {reportTab === 'service' && (
-        <Card>
-          {serviceReports.length === 0 ? (
-            <p className="text-center text-gray-400 py-8">Không có dữ liệu</p>
-          ) : (
-            <div className="divide-y divide-gray-50 dark:divide-gray-800">
-              {serviceReports.map((r, i) => (
-                <div key={r.serviceId} className="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
-                  <span className="text-sm text-gray-400 w-5 text-center">{i + 1}</span>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium text-sm text-gray-900 dark:text-gray-100 truncate">{r.serviceName}</p>
-                    <p className="text-xs text-gray-400">{r.usageCount} lượt</p>
-                  </div>
-                  <p className="font-semibold text-sm text-primary-600 dark:text-primary-400">{formatCurrency(r.totalRevenue)}</p>
+                <div className="h-1.5 rounded-full bg-gray-100 dark:bg-gray-800 overflow-hidden ml-11">
+                  <div className="h-full rounded-full bg-gradient-primary" style={{ width: `${totalRevenue > 0 ? (r.totalRevenue / totalRevenue) * 100 : 0}%` }} />
                 </div>
-              ))}
-            </div>
-          )}
-        </Card>
-      )}
+              </div>
+            ))}
+          </div>
+        )}
+      </Card>
     </>
   );
 }

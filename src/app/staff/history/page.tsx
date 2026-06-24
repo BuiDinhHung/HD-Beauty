@@ -9,7 +9,6 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useStaffTransactions } from '@/hooks/useTransactions';
 import Header from '@/components/layout/Header';
 import TransactionCard from '@/components/shared/TransactionCard';
-import SearchBar from '@/components/ui/SearchBar';
 import EmptyState from '@/components/ui/EmptyState';
 import { SkeletonList } from '@/components/ui/Loading';
 import Button from '@/components/ui/Button';
@@ -20,7 +19,6 @@ type FilterMode = 'all' | 'month' | 'week' | 'custom';
 export default function StaffHistoryPage() {
   const { user } = useAuth();
   const { transactions, loading } = useStaffTransactions(user?.shopId, user?.id);
-  const [search, setSearch] = useState('');
   const [filterMode, setFilterMode] = useState<FilterMode>('all');
   const [customFrom, setCustomFrom] = useState(format(startOfMonth(new Date()), 'yyyy-MM-dd'));
   const [customTo, setCustomTo] = useState(format(new Date(), 'yyyy-MM-dd'));
@@ -69,18 +67,14 @@ export default function StaffHistoryPage() {
 
   const filtered = useMemo(() => {
     return transactions.filter((t) => {
-      const matchSearch =
-        !search ||
-        t.customerName.toLowerCase().includes(search.toLowerCase()) ||
-        t.serviceNames.some((s) => s.toLowerCase().includes(search.toLowerCase()));
       let matchDate = true;
       if (dateFrom && dateTo) {
         const d = t.createdAt.toDate();
         matchDate = d >= dateFrom && d <= dateTo;
       }
-      return matchSearch && matchDate;
+      return matchDate;
     });
-  }, [transactions, search, dateFrom, dateTo]);
+  }, [transactions, dateFrom, dateTo]);
 
   const totalFiltered = filtered.reduce((s, t) => s + t.totalAmount, 0);
 
@@ -91,9 +85,6 @@ export default function StaffHistoryPage() {
     exportToExcel(
       filtered.map((t) => ({
         'Ngày': format(t.createdAt.toDate(), 'dd/MM/yyyy HH:mm'),
-        'Khách hàng': t.customerName,
-        'SĐT': t.customerPhone,
-        'Dịch vụ': t.serviceNames.join(', '),
         'Số tiền (€)': t.totalAmount,
       })),
       exportFilename
@@ -103,12 +94,9 @@ export default function StaffHistoryPage() {
   const handleExportPDF = () => {
     exportToPDF(
       exportTitle,
-      ['Ngày', 'Khách hàng', 'SĐT', 'Dịch vụ', 'Số tiền'],
+      ['Ngày', 'Số tiền'],
       filtered.map((t) => [
         format(t.createdAt.toDate(), 'dd/MM/yyyy'),
-        t.customerName,
-        t.customerPhone,
-        t.serviceNames.join(', '),
         formatCurrency(t.totalAmount),
       ]),
       exportFilename
@@ -126,13 +114,6 @@ export default function StaffHistoryPage() {
             <p className="text-2xl font-bold mt-1">{formatCurrency(todayRevenue)}</p>
           </div>
         )}
-
-        <SearchBar
-          placeholder="Tìm theo tên khách, dịch vụ..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          onClear={() => setSearch('')}
-        />
 
         {/* Filter pills */}
         <div className="flex gap-2 overflow-x-auto pb-0.5 -mx-1 px-1">
@@ -206,8 +187,8 @@ export default function StaffHistoryPage() {
         ) : filtered.length === 0 ? (
           <EmptyState
             icon={<History size={36} />}
-            title={search ? 'Không tìm thấy' : 'Chưa có giao dịch'}
-            description={search ? 'Thử tìm kiếm khác' : 'Các giao dịch bạn tạo sẽ hiển thị tại đây'}
+            title="Chưa có giao dịch"
+            description="Các giao dịch bạn tạo sẽ hiển thị tại đây"
           />
         ) : (
           <div className="space-y-3">

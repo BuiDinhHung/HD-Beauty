@@ -44,14 +44,7 @@ export interface Transaction {
   shopId: string;
   staffId: string;
   staffName: string;
-  customerName: string;
-  customerPhone: string;
-  serviceIds: string[];
-  serviceNames: string[];
-  suggestedAmount: number;
-  discount: number;
   totalAmount: number;
-  note: string;
   createdAt: Timestamp;
 }
 
@@ -63,20 +56,12 @@ export interface StaffReport {
   avgRevenue: number;
 }
 
-export interface ServiceReport {
-  serviceId: string;
-  serviceName: string;
-  usageCount: number;
-  totalRevenue: number;
-}
-
 export interface DashboardStats {
   todayRevenue: number;
   monthRevenue: number;
   todayCustomers: number;
   monthCustomers: number;
   topStaff: StaffReport | null;
-  topService: ServiceReport | null;
 }
 
 export interface ChartDataPoint {
@@ -86,14 +71,7 @@ export interface ChartDataPoint {
 }
 
 export interface TransactionFormData {
-  customerName: string;
-  customerPhone?: string;
-  serviceIds: string[];
-  serviceNames?: string[];
-  suggestedAmount: number;
-  discount: number;
   totalAmount: number;
-  note: string;
 }
 
 export interface StaffFormData {
